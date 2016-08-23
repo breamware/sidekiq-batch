@@ -8,3 +8,4 @@
 /spec/reports/
 /tmp/
 dump.rdb
+sidekiq-batch-*.gem

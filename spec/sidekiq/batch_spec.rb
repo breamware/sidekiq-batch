@@ -51,5 +51,19 @@ describe Sidekiq::Batch do
     it 'throws error if no block given' do
       expect { subject.jobs }.to raise_error Sidekiq::Batch::NoBlockGivenError
     end
+
+    it 'calls increment_job_queue/process_successful_job to wait for block to finish' do
+      batch = Sidekiq::Batch.new
+      expect(Sidekiq::Batch).to receive(:increment_job_queue).with(batch.bid)
+      expect(Sidekiq::Batch).to receive(:process_successful_job).with(batch.bid)
+
+      batch.jobs {}
+    end
+
+    it 'sets Thread.current bid' do
+      batch = Sidekiq::Batch.new
+      batch.jobs {}
+      expect(Thread.current[:bid]).to eq(batch.bid)
+    end
   end
 end

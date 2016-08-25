@@ -9,6 +9,7 @@
 [![Build Status](https://travis-ci.org/breamware/sidekiq-batch.svg?branch=master)][travis]
 [![Dependency Status](https://gemnasium.com/breamware/sidekiq-batch.svg)][gemnasium]
 [![Code Climate](https://codeclimate.com/github/breamware/sidekiq-batch/badges/gpa.svg)][codeclimate]
+[![Code Climate](https://codeclimate.com/github/breamware/sidekiq-batch/badges/issue_count.svg)][codeclimate]
 
 Simple Sidekiq Batch Job implementation.
 

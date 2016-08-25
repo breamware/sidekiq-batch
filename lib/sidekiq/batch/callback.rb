@@ -16,13 +16,13 @@ module Sidekiq
         def call_if_needed(event, bid)
           needed = Sidekiq.redis do |r|
             r.multi do
-              r.hget(bid, event)
-              r.hset(bid, event, true)
+              r.hget("BID-#{bid}", event)
+              r.hset("BID-#{bid}", event, true)
             end
           end
           return if 'true' == needed[0]
           callback, opts, queue = Sidekiq.redis do |r|
-            r.hmget(bid,
+            r.hmget("BID-#{bid}",
                     "callback_#{event}", "callback_#{event}_opts",
                     'callback_queue')
           end

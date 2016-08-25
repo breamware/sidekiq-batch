@@ -12,11 +12,11 @@ module Sidekiq
       end
 
       def pending
-        Sidekiq.redis { |r| r.get("#{bid}-to_process") }.to_i
+        Sidekiq.redis { |r| r.get("BID-#{bid}-to_process") }.to_i
       end
 
       def complete?
-        'true' == Sidekiq.redis { |r| r.hget(bid, 'complete') }
+        'true' == Sidekiq.redis { |r| r.hget("BID-#{bid}", 'complete') }
       end
 
       def data

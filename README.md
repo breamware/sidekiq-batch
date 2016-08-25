@@ -1,4 +1,14 @@
+[gem]: https://rubygems.org/gems/sidekiq-batch
+[travis]: https://travis-ci.org/breamware/sidekiq-batch
+[gemnasium]: https://gemnasium.com/breamware/sidekiq-batch
+[codeclimate]: https://codeclimate.com/github/breamware/sidekiq-batch
+
 # Sidekiq::Batch
+
+[![Gem Version](https://badge.fury.io/rb/sidekiq-batch.svg)][gem]
+[![Build Status](https://travis-ci.org/breamware/sidekiq-batch.svg?branch=master)][travis]
+[![Dependency Status](https://gemnasium.com/breamware/sidekiq-batch.svg)][gemnasium]
+[![Code Climate](https://codeclimate.com/github/breamware/sidekiq-batch/badges/gpa.svg)][codeclimate]
 
 Simple Sidekiq Batch Job implementation.
 

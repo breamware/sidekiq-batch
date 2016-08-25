@@ -1,24 +1,6 @@
 module Sidekiq
   class Batch
     module Middleware
-      def self.extended(base)
-        base.class_eval do
-          register_middleware
-        end
-      end
-
-      def register_middleware
-        Sidekiq.configure_server do |config|
-          config.client_middleware do |chain|
-            chain.add ClientMiddleware
-          end
-          config.server_middleware do |chain|
-            chain.add ClientMiddleware
-            chain.add ServerMiddleware
-          end
-        end
-      end
-
       class ClientMiddleware
         def call(_worker, msg, _queue, _redis_pool = nil)
           if (bid = Thread.current[:bid])
@@ -47,4 +29,12 @@ module Sidekiq
   end
 end
 
-Sidekiq::Batch::Middleware.send(:extend, Sidekiq::Batch::Middleware)
+Sidekiq.configure_server do |config|
+  config.client_middleware do |chain|
+    chain.add Sidekiq::Batch::Middleware::ClientMiddleware
+  end
+  config.server_middleware do |chain|
+    chain.add Sidekiq::Batch::Middleware::ClientMiddleware
+    chain.add Sidekiq::Batch::Middleware::ServerMiddleware
+  end
+end

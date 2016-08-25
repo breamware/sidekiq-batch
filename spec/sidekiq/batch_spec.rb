@@ -27,7 +27,7 @@ describe Sidekiq::Batch do
     end
 
     it 'persists description' do
-      expect(Sidekiq.redis { |r| r.hget(subject.bid, 'description') })
+      expect(Sidekiq.redis { |r| r.hget("BID-#{subject.bid}", 'description') })
         .to eq(description)
     end
   end
@@ -41,7 +41,8 @@ describe Sidekiq::Batch do
     end
 
     it 'persists callback_queue' do
-      expect(Sidekiq.redis { |r| r.hget(subject.bid, 'callback_queue') })
+      expect(Sidekiq
+             .redis { |r| r.hget("BID-#{subject.bid}", 'callback_queue') })
         .to eq(callback_queue)
     end
   end

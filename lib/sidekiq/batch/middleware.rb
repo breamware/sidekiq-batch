@@ -25,16 +25,24 @@ module Sidekiq
           end
         end
       end
+
+      def self.configure
+        Sidekiq.configure_client do |config|
+          config.client_middleware do |chain|
+            chain.add Sidekiq::Batch::Middleware::ClientMiddleware
+          end
+        end
+        Sidekiq.configure_server do |config|
+          config.client_middleware do |chain|
+            chain.add Sidekiq::Batch::Middleware::ClientMiddleware
+          end
+          config.server_middleware do |chain|
+            chain.add Sidekiq::Batch::Middleware::ServerMiddleware
+          end
+        end
+      end
     end
   end
 end
 
-Sidekiq.configure_server do |config|
-  config.client_middleware do |chain|
-    chain.add Sidekiq::Batch::Middleware::ClientMiddleware
-  end
-  config.server_middleware do |chain|
-    chain.add Sidekiq::Batch::Middleware::ClientMiddleware
-    chain.add Sidekiq::Batch::Middleware::ServerMiddleware
-  end
-end
+Sidekiq::Batch::Middleware.configure

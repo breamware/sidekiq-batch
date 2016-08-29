@@ -66,4 +66,78 @@ describe Sidekiq::Batch do
       expect(Thread.current[:bid]).to eq(batch.bid)
     end
   end
+
+  describe '#process_failed_job' do
+    let(:batch) { Sidekiq::Batch.new }
+    let(:bid) { batch.bid }
+    before { Sidekiq.redis { |r| r.set("BID-#{bid}-to_process", 1) } }
+
+    context 'complete' do
+      let(:failed_jid) { 'xxx' }
+      before { batch.on(:complete, Object) }
+      before { Sidekiq::Batch.increment_job_queue(bid) }
+      before { Sidekiq::Batch.process_failed_job(bid, 'failed-job-id') }
+
+      it 'tries to call complete callback' do
+        expect(Sidekiq::Batch::Callback).to receive(:call_if_needed).with(:complete, bid)
+        Sidekiq::Batch.process_failed_job(bid, failed_jid)
+      end
+
+      it 'add job to failed list' do
+        Sidekiq::Batch.process_failed_job(bid, failed_jid)
+        failed = Sidekiq.redis { |r| r.smembers("BID-#{bid}-failed") }
+        expect(failed).to eq(['xxx', 'failed-job-id'])
+      end
+    end
+
+    context 'success' do
+      before { batch.on(:complete, Object) }
+      it 'tries to call complete and success callbacks' do
+        expect(Sidekiq::Batch::Callback).to receive(:call_if_needed).with(:complete, bid)
+        expect(Sidekiq::Batch::Callback).to receive(:call_if_needed).with(:success, bid)
+        Sidekiq::Batch.process_successful_job(bid)
+      end
+    end
+  end
+
+  describe '#process_successful_job' do
+    let(:batch) { Sidekiq::Batch.new }
+    let(:bid) { batch.bid }
+    before { Sidekiq.redis { |r| r.set("BID-#{bid}-to_process", 1) } }
+
+    it 'decrements to_process counter' do
+      Sidekiq::Batch.process_successful_job(bid)
+      to_process = Sidekiq.redis { |r| r.get("BID-#{bid}-to_process") }
+      expect(to_process).to eq('0')
+    end
+
+    context 'complete' do
+      before { batch.on(:complete, Object) }
+      before { Sidekiq::Batch.increment_job_queue(bid) }
+      before { Sidekiq::Batch.process_failed_job(bid, 'failed-job-id') }
+
+      it 'tries to call complete callback' do
+        expect(Sidekiq::Batch::Callback).to receive(:call_if_needed).with(:complete, bid)
+        Sidekiq::Batch.process_successful_job(bid)
+      end
+    end
+
+    context 'success' do
+      before { batch.on(:complete, Object) }
+      it 'tries to call complete and success callbacks' do
+        expect(Sidekiq::Batch::Callback).to receive(:call_if_needed).with(:complete, bid)
+        expect(Sidekiq::Batch::Callback).to receive(:call_if_needed).with(:success, bid)
+        Sidekiq::Batch.process_successful_job(bid)
+      end
+    end
+  end
+
+  describe '#increment_job_queue' do
+    let(:bid) { 'BID' }
+    it 'increments to_process counter' do
+      Sidekiq::Batch.increment_job_queue(bid)
+      to_process = Sidekiq.redis { |r| r.get("BID-#{bid}-to_process") }
+      expect(to_process).to eq('1')
+    end
+  end
 end

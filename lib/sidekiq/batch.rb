@@ -63,10 +63,13 @@ module Sidekiq
           r.multi do
             r.decr("BID-#{bid}-to_process")
             r.get("BID-#{bid}-to_process")
+            r.scard("BID-#{bid}-failed")
           end
         end
-        if to_process[1].to_i == 0
+        if to_process[1].to_i.zero?
           Callback.call_if_needed(:success, bid)
+        end
+        if to_process[2].to_i == to_process[1].to_i
           Callback.call_if_needed(:complete, bid)
         end
       end

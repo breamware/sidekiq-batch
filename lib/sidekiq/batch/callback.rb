@@ -8,7 +8,7 @@ module Sidekiq
           return unless %w(success complete).include?(event)
           instance = clazz.constantize.send(:new) rescue nil
           return unless instance
-          instance.send("on_#{event}", Status.new(bid), opts) rescue nil
+          instance.send("on_#{event}", Sidekiq::Batch::Status.new(bid), opts) rescue nil
         end
       end
 

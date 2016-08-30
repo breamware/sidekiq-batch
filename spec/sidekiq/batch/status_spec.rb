@@ -45,7 +45,14 @@ describe Sidekiq::Batch::Status do
 
   describe '#data' do
     it 'returns batch description' do
-      expect(subject.data).to eq(total: nil, failures: 0, pending: 0, created_at: nil, complete: false, failure_info: nil)
+      expect(subject.data).to eq(total: nil, failures: 0, pending: 0, created_at: nil, complete: false, failure_info: [])
+    end
+  end
+
+  describe '#created_at' do
+    it 'returns time' do
+      Sidekiq::Batch.new(bid)
+      expect(subject.created_at).not_to be_nil
     end
   end
 end

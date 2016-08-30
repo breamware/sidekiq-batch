@@ -14,7 +14,7 @@ module Sidekiq
 
     def initialize(existing_bid = nil)
       @bid = existing_bid || SecureRandom.urlsafe_base64(10)
-      Sidekiq.redis { |r| r.set("BID-#{bid}-to_process", 0) }
+      Sidekiq.redis { |r| r.hset("BID-#{bid}", 'created_at', Time.now) }
     end
 
     def description=(description)

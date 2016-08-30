@@ -1,7 +1,7 @@
 module Sidekiq
   class Batch
     class Status
-      attr_reader :bid, :total, :failures, :created_at, :failure_info
+      attr_reader :bid
 
       def initialize(bid)
         @bid = bid
@@ -17,6 +17,17 @@ module Sidekiq
 
       def failures
         Sidekiq.redis { |r| r.scard("BID-#{bid}-failed") }.to_i
+      end
+
+      def created_at
+        Sidekiq.redis { |r| r.hget("BID-#{bid}", 'created_at') }
+      end
+
+      def total
+      end
+
+      def failure_info
+        []
       end
 
       def complete?

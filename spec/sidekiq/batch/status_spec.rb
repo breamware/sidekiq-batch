@@ -43,9 +43,25 @@ describe Sidekiq::Batch::Status do
     end
   end
 
+  describe '#total' do
+    context 'when not initalized' do
+      it 'returns 0 failed jobs' do
+        expect(subject.total).to eq(0)
+      end
+    end
+
+    context 'when more than 0' do
+      before { Sidekiq::Batch.increment_job_queue(bid) }
+
+      it 'returns failed jobs' do
+        expect(subject.total).to eq(1)
+      end
+    end
+  end
+
   describe '#data' do
     it 'returns batch description' do
-      expect(subject.data).to eq(total: nil, failures: 0, pending: 0, created_at: nil, complete: false, failure_info: [])
+      expect(subject.data).to eq(total: 0, failures: 0, pending: 0, created_at: nil, complete: false, failure_info: [])
     end
   end
 

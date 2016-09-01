@@ -24,6 +24,7 @@ module Sidekiq
       end
 
       def total
+        Sidekiq.redis { |r| r.get("BID-#{bid}-total") }.to_i
       end
 
       def failure_info

@@ -86,9 +86,7 @@ module Sidekiq
       def increment_job_queue(bid)
         Sidekiq.redis do |r|
           r.multi do
-            r.incr("BID-#{bid}-to_process")
-            r.incr("BID-#{bid}-pending")
-            r.incr("BID-#{bid}-total")
+            %w(to_process pending total).each { |c| r.incr("BID-#{bid}-#{c}") }
           end
         end
       end

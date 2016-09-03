@@ -106,10 +106,10 @@ describe Sidekiq::Batch do
     let(:bid) { batch.bid }
     before { Sidekiq.redis { |r| r.set("BID-#{bid}-to_process", 1) } }
 
-    it 'decrements to_process counter' do
+    it 'clears redis keys' do
       Sidekiq::Batch.process_successful_job(bid)
-      to_process = Sidekiq.redis { |r| r.get("BID-#{bid}-to_process") }
-      expect(to_process).to eq('0')
+      to_process = Sidekiq.redis { |r| r.keys("BID-#{bid}*") }
+      expect(to_process).to eq([])
     end
 
     context 'complete' do
@@ -129,6 +129,11 @@ describe Sidekiq::Batch do
         expect(Sidekiq::Batch::Callback).to receive(:call_if_needed).with(:complete, bid)
         expect(Sidekiq::Batch::Callback).to receive(:call_if_needed).with(:success, bid)
         Sidekiq::Batch.process_successful_job(bid)
+      end
+
+      it 'cleanups redis key' do
+        Sidekiq::Batch.process_successful_job(bid)
+        expect(Sidekiq.redis { |r| r.get("BID-#{bid}-to_process") }).to be_nil
       end
     end
   end

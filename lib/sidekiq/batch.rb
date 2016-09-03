@@ -69,6 +69,18 @@ module Sidekiq
 
         Callback.call_if_needed(:success, bid) if out[0].to_i.zero?
         Callback.call_if_needed(:complete, bid) if out[1].to_i == out[0].to_i
+
+        cleanup_redis(bid)
+      end
+
+      def cleanup_redis(bid)
+        Sidekiq.redis do |r|
+          r.del("BID-#{bid}",
+                "BID-#{bid}-to_process",
+                "BID-#{bid}-pending",
+                "BID-#{bid}-total",
+                "BID-#{bid}-failed")
+        end
       end
 
       def increment_job_queue(bid)

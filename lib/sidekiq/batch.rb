@@ -38,10 +38,10 @@ module Sidekiq
     def jobs
       raise NoBlockGivenError unless block_given?
 
-      Batch.increment_job_queue(bid)
+      Sidekiq.redis { |r| r.incr("BID-#{bid}-to_process") }
       Thread.current[:bid] = bid
       yield
-      Batch.process_successful_job(bid)
+      Sidekiq.redis { |r| r.decr("BID-#{bid}-to_process") }
     end
 
     class << self
@@ -59,25 +59,23 @@ module Sidekiq
       end
 
       def process_successful_job(bid)
-        to_process = Sidekiq.redis do |r|
+        out = Sidekiq.redis do |r|
           r.multi do
             r.decr("BID-#{bid}-to_process")
-            r.get("BID-#{bid}-to_process")
             r.scard("BID-#{bid}-failed")
+            r.decr("BID-#{bid}-pending")
           end
         end
-        if to_process[1].to_i.zero?
-          Callback.call_if_needed(:success, bid)
-        end
-        if to_process[2].to_i == to_process[1].to_i
-          Callback.call_if_needed(:complete, bid)
-        end
+
+        Callback.call_if_needed(:success, bid) if out[0].to_i.zero?
+        Callback.call_if_needed(:complete, bid) if out[1].to_i == out[0].to_i
       end
 
       def increment_job_queue(bid)
         Sidekiq.redis do |r|
           r.multi do
             r.incr("BID-#{bid}-to_process")
+            r.incr("BID-#{bid}-pending")
             r.incr("BID-#{bid}-total")
           end
         end

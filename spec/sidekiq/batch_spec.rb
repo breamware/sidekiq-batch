@@ -52,13 +52,14 @@ describe Sidekiq::Batch do
       expect { subject.jobs }.to raise_error Sidekiq::Batch::NoBlockGivenError
     end
 
-    it 'calls increment_job_queue/process_successful_job to wait for block to finish' do
-      batch = Sidekiq::Batch.new
-      expect(Sidekiq::Batch).to receive(:increment_job_queue).with(batch.bid)
-      expect(Sidekiq::Batch).to receive(:process_successful_job).with(batch.bid)
+    it 'increments to_process (when started)'
 
-      batch.jobs {}
-    end
+    it 'decrements to_process (when finished)'
+    # it 'calls process_successful_job to wait for block to finish' do
+    #   batch = Sidekiq::Batch.new
+    #   expect(Sidekiq::Batch).to receive(:process_successful_job).with(batch.bid)
+    #   batch.jobs {}
+    # end
 
     it 'sets Thread.current bid' do
       batch = Sidekiq::Batch.new
@@ -139,5 +140,9 @@ describe Sidekiq::Batch do
       to_process = Sidekiq.redis { |r| r.get("BID-#{bid}-to_process") }
       expect(to_process).to eq('1')
     end
+
+    it 'increments pending'
+
+    it 'increments total'
   end
 end

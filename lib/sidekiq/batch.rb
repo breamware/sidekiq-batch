@@ -41,6 +41,7 @@ module Sidekiq
       Sidekiq.redis { |r| r.incr("BID-#{bid}-to_process") }
       Thread.current[:bid] = bid
       yield
+      Thread.current[:bid] = nil
       Sidekiq.redis { |r| r.decr("BID-#{bid}-to_process") }
     end
 
@@ -67,13 +68,13 @@ module Sidekiq
           end
         end
 
-        Callback.call_if_needed(:success, bid) if out[0].to_i.zero?
+        puts "processed process_successful_job"
         Callback.call_if_needed(:complete, bid) if out[1].to_i == out[0].to_i
-
-        cleanup_redis(bid)
+        Callback.call_if_needed(:success, bid) if out[0].to_i.zero?
       end
 
       def cleanup_redis(bid)
+        puts "CEALNING UPT #{bid}"
         Sidekiq.redis do |r|
           r.del("BID-#{bid}",
                 "BID-#{bid}-to_process",

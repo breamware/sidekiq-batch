@@ -47,7 +47,7 @@ describe Sidekiq::Batch::Middleware do
       it 'just yields' do
         yielded = false
         expect(Sidekiq::Batch).not_to receive(:increment_job_queue)
-        subject.call(nil, nil, nil) { yielded = true }
+        subject.call(nil, {}, nil) { yielded = true }
         expect(yielded).to be_truthy
       end
     end

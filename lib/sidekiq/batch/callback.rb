@@ -33,6 +33,8 @@ module Sidekiq
           Sidekiq::Client.push('class' => Sidekiq::Batch::Callback::Worker,
                                'args' => [callback, event, opts, bid],
                                'queue' => queue)
+        ensure
+          Sidekiq::Batch.cleanup_redis(bid) if event == :success
         end
       end
     end

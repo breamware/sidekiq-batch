@@ -43,6 +43,8 @@ describe Sidekiq::Batch::Callback do
     let(:callback) { double('callback') }
     let(:event) { 'complete' }
 
+    it 'clears redis keys on success'
+
     context 'when already called' do
       it 'returns and do not call callback' do
         batch = Sidekiq::Batch.new

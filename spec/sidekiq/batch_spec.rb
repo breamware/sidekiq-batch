@@ -63,8 +63,9 @@ describe Sidekiq::Batch do
 
     it 'sets Thread.current bid' do
       batch = Sidekiq::Batch.new
-      batch.jobs {}
-      expect(Thread.current[:bid]).to eq(batch.bid)
+      batch.jobs do
+        expect(Thread.current[:bid]).to eq(batch.bid)
+      end
     end
   end
 
@@ -106,12 +107,6 @@ describe Sidekiq::Batch do
     let(:bid) { batch.bid }
     before { Sidekiq.redis { |r| r.set("BID-#{bid}-to_process", 1) } }
 
-    it 'clears redis keys' do
-      Sidekiq::Batch.process_successful_job(bid)
-      to_process = Sidekiq.redis { |r| r.keys("BID-#{bid}*") }
-      expect(to_process).to eq([])
-    end
-
     context 'complete' do
       before { batch.on(:complete, Object) }
       before { Sidekiq::Batch.increment_job_queue(bid) }
@@ -133,7 +128,7 @@ describe Sidekiq::Batch do
 
       it 'cleanups redis key' do
         Sidekiq::Batch.process_successful_job(bid)
-        expect(Sidekiq.redis { |r| r.get("BID-#{bid}-to_process") }).to be_nil
+        expect(Sidekiq.redis { |r| r.get("BID-#{bid}-to_process") }.to_i).to eq(0)
       end
     end
   end

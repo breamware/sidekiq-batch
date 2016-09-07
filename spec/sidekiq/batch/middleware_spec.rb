@@ -101,4 +101,12 @@ describe Sidekiq::Batch::Middleware do
       Sidekiq::Batch::Middleware.configure
     end
   end
+
+  context 'worker' do
+    it 'defines method bid' do
+      expect(Sidekiq::Worker).to receive(:define_method).with('bid').and_yield
+      expect(Sidekiq::Worker).to receive(:define_method).with('batch').and_yield
+      Sidekiq::Batch::Middleware.configure
+    end
+  end
 end

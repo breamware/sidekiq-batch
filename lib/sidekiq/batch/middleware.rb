@@ -44,17 +44,15 @@ module Sidekiq
             chain.add Sidekiq::Batch::Middleware::ServerMiddleware
           end
         end
+        Sidekiq::Worker.send(:define_method, 'bid') do
+          Thread.current[:bid]
+        end
+        Sidekiq::Worker.send(:define_method, 'batch') do
+          Sidekiq::Batch.new(Thread.current[:bid]) if Thread.current[:bid]
+        end
       end
     end
   end
-end
-
-Sidekiq::Worker.send(:define_method, 'bid') do
-  Thread.current[:bid]
-end
-
-Sidekiq::Worker.send(:define_method, 'batch') do
-  Sidekiq::Batch.new(bid) if bid
 end
 
 Sidekiq::Batch::Middleware.configure

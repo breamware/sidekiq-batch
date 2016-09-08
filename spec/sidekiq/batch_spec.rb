@@ -141,8 +141,16 @@ describe Sidekiq::Batch do
       expect(to_process).to eq('1')
     end
 
-    it 'increments pending'
+    it 'increments pending' do
+      Sidekiq::Batch.increment_job_queue(bid)
+      pending = Sidekiq.redis { |r| r.hget("BID-#{bid}", 'pending') }
+      expect(pending).to eq('1')
+    end
 
-    it 'increments total'
+    it 'increments total' do
+      Sidekiq::Batch.increment_job_queue(bid)
+      total = Sidekiq.redis { |r| r.hget("BID-#{bid}", 'total') }
+      expect(total).to eq('1')
+    end
   end
 end

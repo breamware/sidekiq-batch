@@ -28,7 +28,7 @@ module Sidekiq
       end
 
       def failure_info
-        []
+        Sidekiq.redis { |r| r.smembers("BID-#{bid}-failed") } || []
       end
 
       def complete?

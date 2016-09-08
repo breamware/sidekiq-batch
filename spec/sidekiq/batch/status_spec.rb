@@ -43,6 +43,22 @@ describe Sidekiq::Batch::Status do
     end
   end
 
+  describe '#failure_info' do
+    context 'when not initalized' do
+      it 'returns empty array' do
+        expect(subject.failure_info).to eq([])
+      end
+    end
+
+    context 'when with error' do
+      before { Sidekiq::Batch.process_failed_job(bid, 'jid123') }
+
+      it 'returns array with failed jids' do
+        expect(subject.failure_info).to eq(['jid123'])
+      end
+    end
+  end
+
   describe '#total' do
     context 'when not initalized' do
       it 'returns 0 failed jobs' do

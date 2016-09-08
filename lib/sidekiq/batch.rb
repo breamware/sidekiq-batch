@@ -26,22 +26,12 @@ module Sidekiq
 
     def description=(description)
       @description = description
-      Sidekiq.redis do |r|
-        r.multi do
-          r.hset("BID-#{bid}", 'description', description)
-          r.expire("BID-#{bid}", BID_EXPIRE_TTL)
-        end
-      end
+      persist_bid_attr('description', description)
     end
 
     def callback_queue=(callback_queue)
       @callback_queue = callback_queue
-      Sidekiq.redis do |r|
-        r.multi do
-          r.hset("BID-#{bid}", 'callback_queue', callback_queue)
-          r.expire("BID-#{bid}", BID_EXPIRE_TTL)
-        end
-      end
+      persist_bid_attr('callback_queue', callback_queue)
     end
 
     def on(event, callback, options = {})
@@ -63,6 +53,17 @@ module Sidekiq
       yield
       Thread.current[:bid] = nil
       Sidekiq.redis { |r| r.hincrby("BID-#{bid}", 'to_process', -1) }
+    end
+
+    private
+
+    def persist_bid_attr(attribute, value)
+      Sidekiq.redis do |r|
+        r.multi do
+          r.hset("BID-#{bid}", attribute, value)
+          r.expire("BID-#{bid}", BID_EXPIRE_TTL)
+        end
+      end
     end
 
     class << self

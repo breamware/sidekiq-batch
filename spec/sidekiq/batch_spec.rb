@@ -72,7 +72,7 @@ describe Sidekiq::Batch do
   describe '#process_failed_job' do
     let(:batch) { Sidekiq::Batch.new }
     let(:bid) { batch.bid }
-    before { Sidekiq.redis { |r| r.set("BID-#{bid}-to_process", 1) } }
+    before { Sidekiq.redis { |r| r.hset("BID-#{bid}", 'to_process', 1) } }
 
     context 'complete' do
       let(:failed_jid) { 'xxx' }
@@ -105,7 +105,7 @@ describe Sidekiq::Batch do
   describe '#process_successful_job' do
     let(:batch) { Sidekiq::Batch.new }
     let(:bid) { batch.bid }
-    before { Sidekiq.redis { |r| r.set("BID-#{bid}-to_process", 1) } }
+    before { Sidekiq.redis { |r| r.hset("BID-#{bid}", 'to_process', 1) } }
 
     context 'complete' do
       before { batch.on(:complete, Object) }
@@ -137,7 +137,7 @@ describe Sidekiq::Batch do
     let(:bid) { 'BID' }
     it 'increments to_process counter' do
       Sidekiq::Batch.increment_job_queue(bid)
-      to_process = Sidekiq.redis { |r| r.get("BID-#{bid}-to_process") }
+      to_process = Sidekiq.redis { |r| r.hget("BID-#{bid}", 'to_process') }
       expect(to_process).to eq('1')
     end
 

@@ -38,11 +38,11 @@ module Sidekiq
     def jobs
       raise NoBlockGivenError unless block_given?
 
-      Sidekiq.redis { |r| r.incr("BID-#{bid}-to_process") }
+      Sidekiq.redis { |r| r.hincrby("BID-#{bid}", 'to_process', 1) }
       Thread.current[:bid] = bid
       yield
       Thread.current[:bid] = nil
-      Sidekiq.redis { |r| r.decr("BID-#{bid}-to_process") }
+      Sidekiq.redis { |r| r.hincrby("BID-#{bid}", 'to_process', -1) }
     end
 
     class << self
@@ -51,7 +51,7 @@ module Sidekiq
           r.multi do
             r.sadd("BID-#{bid}-failed", jid)
             r.scard("BID-#{bid}-failed")
-            r.get("BID-#{bid}-to_process")
+            r.hget("BID-#{bid}", 'to_process')
           end
         end
         if to_process[2].to_i == to_process[1].to_i
@@ -62,7 +62,7 @@ module Sidekiq
       def process_successful_job(bid)
         out = Sidekiq.redis do |r|
           r.multi do
-            r.decr("BID-#{bid}-to_process")
+            r.hincrby("BID-#{bid}", 'to_process', -1)
             r.scard("BID-#{bid}-failed")
             r.decr("BID-#{bid}-pending")
           end
@@ -74,10 +74,8 @@ module Sidekiq
       end
 
       def cleanup_redis(bid)
-        puts "CEALNING UPT #{bid}"
         Sidekiq.redis do |r|
           r.del("BID-#{bid}",
-                "BID-#{bid}-to_process",
                 "BID-#{bid}-pending",
                 "BID-#{bid}-total",
                 "BID-#{bid}-failed")
@@ -87,7 +85,8 @@ module Sidekiq
       def increment_job_queue(bid)
         Sidekiq.redis do |r|
           r.multi do
-            %w(to_process pending total).each { |c| r.incr("BID-#{bid}-#{c}") }
+            r.hincrby("BID-#{bid}", 'to_process', 1)
+            %w(pending total).each { |c| r.incr("BID-#{bid}-#{c}") }
           end
         end
       end

@@ -2,7 +2,7 @@ module Sidekiq
   class Batch
     module Middleware
       class ClientMiddleware
-        def call(worker, msg, _queue, _redis_pool = nil)
+        def call(_worker, msg, _queue, _redis_pool = nil)
           if (bid = Thread.current[:bid])
             Batch.increment_job_queue(bid) if (msg[:bid] = bid)
           end

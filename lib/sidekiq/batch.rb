@@ -64,7 +64,7 @@ module Sidekiq
           r.multi do
             r.hincrby("BID-#{bid}", 'to_process', -1)
             r.scard("BID-#{bid}-failed")
-            r.decr("BID-#{bid}-pending")
+            r.hincrby("BID-#{bid}", 'pending', -1)
           end
         end
 
@@ -76,8 +76,6 @@ module Sidekiq
       def cleanup_redis(bid)
         Sidekiq.redis do |r|
           r.del("BID-#{bid}",
-                "BID-#{bid}-pending",
-                "BID-#{bid}-total",
                 "BID-#{bid}-failed")
         end
       end
@@ -85,8 +83,9 @@ module Sidekiq
       def increment_job_queue(bid)
         Sidekiq.redis do |r|
           r.multi do
-            r.hincrby("BID-#{bid}", 'to_process', 1)
-            %w(pending total).each { |c| r.incr("BID-#{bid}-#{c}") }
+            %w(to_process pending total).each do |c|
+              r.hincrby("BID-#{bid}", c, 1)
+            end
           end
         end
       end

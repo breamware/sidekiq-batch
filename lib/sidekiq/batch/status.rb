@@ -12,7 +12,7 @@ module Sidekiq
       end
 
       def pending
-        Sidekiq.redis { |r| r.hget("BID-#{bid}", 'to_process') }.to_i
+        Sidekiq.redis { |r| r.hget("BID-#{bid}", 'pending') }.to_i
       end
 
       def failures
@@ -24,7 +24,7 @@ module Sidekiq
       end
 
       def total
-        Sidekiq.redis { |r| r.get("BID-#{bid}-total") }.to_i
+        Sidekiq.redis { |r| r.hget("BID-#{bid}", 'total') }.to_i
       end
 
       def failure_info

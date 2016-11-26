@@ -1,10 +1,10 @@
 module Sidekiq
-  class Batch
+  class GroupJob
     module Middleware
       class ClientMiddleware
         def call(_worker, msg, _queue, _redis_pool = nil)
           if (bid = Thread.current[:bid])
-            Batch.increment_job_queue(bid) if (msg[:bid] = bid)
+            GroupJob.increment_job_queue(bid) if (msg[:bid] = bid)
           end
           yield
         end
@@ -17,9 +17,9 @@ module Sidekiq
               Thread.current[:bid] = bid
               yield
               Thread.current[:bid] = nil
-              Batch.process_successful_job(bid)
+              GroupJob.process_successful_job(bid)
             rescue
-              Batch.process_failed_job(bid, msg['jid'])
+              GroupJob.process_failed_job(bid, msg['jid'])
               raise
             ensure
               Thread.current[:bid] = nil
@@ -33,26 +33,26 @@ module Sidekiq
       def self.configure
         Sidekiq.configure_client do |config|
           config.client_middleware do |chain|
-            chain.add Sidekiq::Batch::Middleware::ClientMiddleware
+            chain.add Sidekiq::GroupJob::Middleware::ClientMiddleware
           end
         end
         Sidekiq.configure_server do |config|
           config.client_middleware do |chain|
-            chain.add Sidekiq::Batch::Middleware::ClientMiddleware
+            chain.add Sidekiq::GroupJob::Middleware::ClientMiddleware
           end
           config.server_middleware do |chain|
-            chain.add Sidekiq::Batch::Middleware::ServerMiddleware
+            chain.add Sidekiq::GroupJob::Middleware::ServerMiddleware
           end
         end
         Sidekiq::Worker.send(:define_method, 'bid') do
           Thread.current[:bid]
         end
-        Sidekiq::Worker.send(:define_method, 'batch') do
-          Sidekiq::Batch.new(Thread.current[:bid]) if Thread.current[:bid]
+        Sidekiq::Worker.send(:define_method, 'group_job') do
+          Sidekiq::GroupJob.new(Thread.current[:bid]) if Thread.current[:bid]
         end
       end
     end
   end
 end
 
-Sidekiq::Batch::Middleware.configure
+Sidekiq::GroupJob::Middleware.configure

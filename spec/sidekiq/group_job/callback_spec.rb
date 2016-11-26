@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe Sidekiq::Batch::Callback::Worker do
+describe Sidekiq::GroupJob::Callback::Worker do
   class SampleCallback; end
 
   describe '#perfom' do
@@ -22,7 +22,7 @@ describe Sidekiq::Batch::Callback::Worker do
       callback_instance = double('SampleCallback')
       expect(SampleCallback).to receive(:new).and_return(callback_instance)
       expect(callback_instance).to receive(:on_success)
-        .with(instance_of(Sidekiq::Batch::Status), {})
+                                       .with(instance_of(Sidekiq::GroupJob::Status), {})
       subject.perform('SampleCallback', 'success', {}, 'ABCD')
     end
 
@@ -30,13 +30,13 @@ describe Sidekiq::Batch::Callback::Worker do
       callback_instance = double('SampleCallback')
       expect(SampleCallback).to receive(:new).and_return(callback_instance)
       expect(callback_instance).to receive(:on_complete)
-        .with(instance_of(Sidekiq::Batch::Status), {})
+                                       .with(instance_of(Sidekiq::GroupJob::Status), {})
       subject.perform('SampleCallback', 'complete', {}, 'ABCD')
     end
   end
 end
 
-describe Sidekiq::Batch::Callback do
+describe Sidekiq::GroupJob::Callback do
   subject { described_class }
 
   describe '#call_if_needed' do
@@ -47,7 +47,7 @@ describe Sidekiq::Batch::Callback do
 
     context 'when already called' do
       it 'returns and do not call callback' do
-        batch = Sidekiq::Batch.new
+        batch = Sidekiq::GroupJob.new
         batch.on(:complete, SampleCallback)
         Sidekiq.redis { |r| r.hset("BID-#{batch.bid}", event, true) }
 
@@ -59,7 +59,7 @@ describe Sidekiq::Batch::Callback do
     context 'when not yet called' do
       context 'when there is no callback' do
         it 'it returns' do
-          batch = Sidekiq::Batch.new
+          batch = Sidekiq::GroupJob.new
 
           expect(Sidekiq::Client).not_to receive(:push)
           subject.call_if_needed(event, batch.bid)
@@ -70,11 +70,11 @@ describe Sidekiq::Batch::Callback do
         let(:opts) { { 'a' => 'b' } }
 
         it 'calls it passing options' do
-          batch = Sidekiq::Batch.new
+          batch = Sidekiq::GroupJob.new
           batch.on(:complete, SampleCallback, opts)
 
           expect(Sidekiq::Client).to receive(:push).with(
-            'class' => Sidekiq::Batch::Callback::Worker,
+                                         'class' => Sidekiq::GroupJob::Callback::Worker,
             'args' => ['SampleCallback', 'complete', opts, batch.bid],
             'queue' => 'default'
           )

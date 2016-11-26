@@ -1,13 +1,13 @@
 require 'securerandom'
 require 'sidekiq'
 
-require 'sidekiq/batch/callback'
-require 'sidekiq/batch/middleware'
-require 'sidekiq/batch/status'
-require 'sidekiq/batch/version'
+require 'sidekiq/group_job/callback'
+require 'sidekiq/group_job/middleware'
+require 'sidekiq/group_job/status'
+require 'sidekiq/group_job/version'
 
 module Sidekiq
-  class Batch
+  class GroupJob
     class NoBlockGivenError < StandardError; end
 
     BID_EXPIRE_TTL = 108_000

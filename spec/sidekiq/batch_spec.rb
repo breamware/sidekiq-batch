@@ -71,12 +71,12 @@ describe Sidekiq::GroupJob do
 
   describe '#process_failed_job' do
     let(:group_job) { Sidekiq::GroupJob.new }
-    let(:bid) { batch.bid }
+    let(:bid) { group_job.bid }
     before { Sidekiq.redis { |r| r.hset("BID-#{bid}", 'to_process', 1) } }
 
     context 'complete' do
       let(:failed_jid) { 'xxx' }
-      before { batch.on(:complete, Object) }
+      before { group_job.on(:complete, Object) }
       before { Sidekiq::GroupJob.increment_job_queue(bid) }
       before { Sidekiq::GroupJob.process_failed_job(bid, 'failed-job-id') }
 
@@ -93,7 +93,7 @@ describe Sidekiq::GroupJob do
     end
 
     context 'success' do
-      before { batch.on(:complete, Object) }
+      before { group_job.on(:complete, Object) }
       it 'tries to call complete and success callbacks' do
         expect(Sidekiq::GroupJob::Callback).to receive(:call_if_needed).with(:complete, bid)
         expect(Sidekiq::GroupJob::Callback).to receive(:call_if_needed).with(:success, bid)
@@ -104,11 +104,11 @@ describe Sidekiq::GroupJob do
 
   describe '#process_successful_job' do
     let(:group_job) { Sidekiq::GroupJob.new }
-    let(:bid) { batch.bid }
+    let(:bid) { group_job.bid }
     before { Sidekiq.redis { |r| r.hset("BID-#{bid}", 'to_process', 1) } }
 
     context 'complete' do
-      before { batch.on(:complete, Object) }
+      before { group_job.on(:complete, Object) }
       before { Sidekiq::GroupJob.increment_job_queue(bid) }
       before { Sidekiq::GroupJob.process_failed_job(bid, 'failed-job-id') }
 
@@ -119,7 +119,7 @@ describe Sidekiq::GroupJob do
     end
 
     context 'success' do
-      before { batch.on(:complete, Object) }
+      before { group_job.on(:complete, Object) }
       it 'tries to call complete and success callbacks' do
         expect(Sidekiq::GroupJob::Callback).to receive(:call_if_needed).with(:complete, bid)
         expect(Sidekiq::GroupJob::Callback).to receive(:call_if_needed).with(:success, bid)

@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe Sidekiq::Batch::Status do
+describe Sidekiq::GroupJob::Status do
   let(:bid) { 'BID' }
   subject { described_class.new(bid) }
 
@@ -18,7 +18,7 @@ describe Sidekiq::Batch::Status do
     end
 
     context 'when more than 0' do
-      before { Sidekiq::Batch.increment_job_queue(bid) }
+      before { Sidekiq::GroupJob.increment_job_queue(bid) }
 
       it 'returns pending jobs' do
         expect(subject.pending).to eq(1)
@@ -34,8 +34,8 @@ describe Sidekiq::Batch::Status do
     end
 
     context 'when more than 0' do
-      before { Sidekiq::Batch.increment_job_queue(bid) }
-      before { Sidekiq::Batch.process_failed_job(bid, 'FAILEDID') }
+      before { Sidekiq::GroupJob.increment_job_queue(bid) }
+      before { Sidekiq::GroupJob.process_failed_job(bid, 'FAILEDID') }
 
       it 'returns failed jobs' do
         expect(subject.failures).to eq(1)
@@ -51,7 +51,7 @@ describe Sidekiq::Batch::Status do
     end
 
     context 'when with error' do
-      before { Sidekiq::Batch.process_failed_job(bid, 'jid123') }
+      before { Sidekiq::GroupJob.process_failed_job(bid, 'jid123') }
 
       it 'returns array with failed jids' do
         expect(subject.failure_info).to eq(['jid123'])
@@ -67,7 +67,7 @@ describe Sidekiq::Batch::Status do
     end
 
     context 'when more than 0' do
-      before { Sidekiq::Batch.increment_job_queue(bid) }
+      before { Sidekiq::GroupJob.increment_job_queue(bid) }
 
       it 'returns failed jobs' do
         expect(subject.total).to eq(1)
@@ -76,14 +76,14 @@ describe Sidekiq::Batch::Status do
   end
 
   describe '#data' do
-    it 'returns batch description' do
+    it 'returns group_job description' do
       expect(subject.data).to eq(total: 0, failures: 0, pending: 0, created_at: nil, complete: false, failure_info: [])
     end
   end
 
   describe '#created_at' do
     it 'returns time' do
-      Sidekiq::Batch.new(bid)
+      Sidekiq::GroupJob.new(bid)
       expect(subject.created_at).not_to be_nil
     end
   end

@@ -1,4 +1,4 @@
-require 'sidekiq/batch'
+require 'sidekiq/group_job'
 
 Sidekiq.redis { |r| r.flushdb }
 
@@ -33,8 +33,8 @@ class MyCallback
   end
 end
 
-batch = Sidekiq::Batch.new
-batch.description = 'Test batch'
+batch = Sidekiq::GroupJob.new
+batch.description = 'Test group_job'
 batch.callback_queue = :default
 batch.on(:success, MyCallback, to: 'success@gmail.com')
 batch.on(:complete, MyCallback, to: 'complete@gmail.com')
@@ -44,7 +44,7 @@ batch.jobs do
     TestWorker.perform_async
   end
 end
-puts Sidekiq::Batch::Status.new(batch.bid).data
+puts Sidekiq::GroupJob::Status.new(batch.bid).data
 
 Thread.new do
   loop do

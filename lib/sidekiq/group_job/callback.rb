@@ -1,5 +1,5 @@
 module Sidekiq
-  class Batch
+  class GroupJob
     module Callback
       class Worker
         include Sidekiq::Worker
@@ -8,7 +8,7 @@ module Sidekiq
           return unless %w(success complete).include?(event)
           instance = clazz.constantize.send(:new) rescue nil
           return unless instance
-          instance.send("on_#{event}", Sidekiq::Batch::Status.new(bid), opts) rescue nil
+          instance.send("on_#{event}", Sidekiq::GroupJob::Status.new(bid), opts) rescue nil
         end
       end
 
@@ -30,11 +30,11 @@ module Sidekiq
           opts    = JSON.parse(opts) if opts
           opts  ||= {}
           queue ||= 'default'
-          Sidekiq::Client.push('class' => Sidekiq::Batch::Callback::Worker,
+          Sidekiq::Client.push('class' => Sidekiq::GroupJob::Callback::Worker,
                                'args' => [callback, event, opts, bid],
                                'queue' => queue)
         ensure
-          Sidekiq::Batch.cleanup_redis(bid) if event == :success
+          Sidekiq::GroupJob.cleanup_redis(bid) if event == :success
         end
       end
     end

@@ -5,11 +5,9 @@ module Sidekiq
         include Sidekiq::Worker
 
         def perform(clazz, event, opts, bid)
-          return unless %w(success complete).include?(event)
           clazz, method = clazz.split("#") if (clazz.class == String && clazz.include?("#"))
           method = "on_#{event}" if method.nil?
-          instance = clazz.constantize rescue nil
-          instance.new.send(method, Sidekiq::Batch::Status.new(bid), opts) rescue nil
+          clazz.constantize.new.send(method, Sidekiq::Batch::Status.new(bid), opts) rescue nil
         end
       end
 

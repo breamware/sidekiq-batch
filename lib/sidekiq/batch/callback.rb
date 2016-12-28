@@ -6,9 +6,10 @@ module Sidekiq
 
         def perform(clazz, event, opts, bid)
           return unless %w(success complete).include?(event)
-          instance = clazz.constantize.send(:new) rescue nil
-          return unless instance
-          instance.send("on_#{event}", Sidekiq::Batch::Status.new(bid), opts) rescue nil
+          clazz, method = clazz.split('#') if (clazz.class == "string" && clazz.include?("#"))
+          method = "on_#{event}" if method.nil?
+          instance = clazz.constantize rescue nil
+          instance.new.send(method, Sidekiq::Batch::Status.new(bid), opts) rescue nil
         end
       end
 

@@ -33,6 +33,14 @@ describe Sidekiq::Batch::Callback::Worker do
         .with(instance_of(Sidekiq::Batch::Status), {})
       subject.perform('SampleCallback', 'complete', {}, 'ABCD')
     end
+
+    it 'calls specific callback if defined' do
+      callback_instance = double('SampleCallback')
+      expect(SampleCallback).to receive(:new).and_return(callback_instance)
+      expect(callback_instance).to receive(:sample_method)
+        .with(instance_of(Sidekiq::Batch::Status), {})
+      subject.perform('SampleCallback#sample_method', 'complete', {}, 'ABCD')
+    end
   end
 end
 

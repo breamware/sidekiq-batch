@@ -16,10 +16,9 @@ module Sidekiq
 
     def initialize(existing_bid = nil)
       @bid = existing_bid || SecureRandom.urlsafe_base64(10)
-      @existing = existing_bid.present?
+      @existing = !existing_bid.nil?
       @initialized = false
       @created_at = Time.now.utc.to_f
-      @callbacks = {}
       @bidkey = "BID-" + @bid.to_s
     end
 
@@ -98,7 +97,6 @@ module Sidekiq
       end
     end
 
-
     def increment_job_queue(jid)
       @ready_to_queue << jid
     end
@@ -164,10 +162,11 @@ module Sidekiq
             r.hget("BID-#{bid}", "parent_bid")
           end
         end
-        return if 'true' == needed || callback.blank?
+        return if 'true' == needed
+        return unless callback
 
         begin
-          parent_bid = parent_bid.blank? ? nil : parent_bid
+          parent_bid = parent_bid.nil? ? nil : parent_bid
           opts    = JSON.parse(opts) if opts
           opts  ||= {}
           queue ||= 'default'

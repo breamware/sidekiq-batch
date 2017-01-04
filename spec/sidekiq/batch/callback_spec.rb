@@ -43,9 +43,3 @@ describe Sidekiq::Batch::Callback::Worker do
     end
   end
 end
-
-describe Sidekiq::Batch::Callback do
-  subject { described_class }
-
-
-end

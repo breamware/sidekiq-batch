@@ -3,23 +3,19 @@ require 'spec_helper'
 
 class WorkerA
   include Sidekiq::Worker
-  def perform(crash=false)
-    raise "randomerror" if crash
-    $a += 1
+  def perform
   end
 end
 
 class WorkerB
   include Sidekiq::Worker
   def perform
-    $b += 1
   end
 end
 
 class WorkerC
   include Sidekiq::Worker
   def perform
-    $c += 1
   end
 end
 

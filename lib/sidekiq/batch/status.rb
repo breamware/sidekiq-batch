@@ -39,6 +39,10 @@ module Sidekiq
         'true' == Sidekiq.redis { |r| r.hget("BID-#{bid}", 'complete') }
       end
 
+      def child_count
+        Sidekiq.redis { |r| r.hget("BID-#{bid}", 'children') }.to_i
+      end
+
       def data
         {
           total: total,

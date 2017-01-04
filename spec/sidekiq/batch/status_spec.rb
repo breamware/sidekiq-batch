@@ -2,6 +2,7 @@ require 'spec_helper'
 
 describe Sidekiq::Batch::Status do
   let(:bid) { 'BID' }
+  let(:batch) { Sidekiq::Batch.new(bid) }
   subject { described_class.new(bid) }
 
   describe '#join' do
@@ -18,8 +19,7 @@ describe Sidekiq::Batch::Status do
     end
 
     context 'when more than 0' do
-      before { Sidekiq::Batch.increment_job_queue(bid) }
-
+      before { batch.jobs do TestWorker.perform_async end }
       it 'returns pending jobs' do
         expect(subject.pending).to eq(1)
       end
@@ -34,7 +34,7 @@ describe Sidekiq::Batch::Status do
     end
 
     context 'when more than 0' do
-      before { Sidekiq::Batch.increment_job_queue(bid) }
+      before { batch.increment_job_queue(bid) }
       before { Sidekiq::Batch.process_failed_job(bid, 'FAILEDID') }
 
       it 'returns failed jobs' do
@@ -67,7 +67,7 @@ describe Sidekiq::Batch::Status do
     end
 
     context 'when more than 0' do
-      before { Sidekiq::Batch.increment_job_queue(bid) }
+      before { batch.jobs do TestWorker.perform_async end }
 
       it 'returns failed jobs' do
         expect(subject.total).to eq(1)
@@ -83,9 +83,10 @@ describe Sidekiq::Batch::Status do
 
   describe '#created_at' do
     it 'returns time' do
-      batch = Sidekiq::Batch.new(bid)
-      batch.jobs do nil end
-      expect(subject.created_at).not_to be_nil
+      batch = Sidekiq::Batch.new
+      batch.jobs do TestWorker.perform_async end
+      status = described_class.new(batch.bid)
+      expect(status.created_at).not_to be_nil
     end
   end
 end

@@ -1,5 +1,12 @@
 require 'spec_helper'
 
+
+class TestWorker
+  include Sidekiq::Worker
+  def perform
+  end
+end
+
 describe Sidekiq::Batch do
   it 'has a version number' do
     expect(Sidekiq::Batch::VERSION).not_to be nil
@@ -73,21 +80,18 @@ describe Sidekiq::Batch do
     let(:batch) { Sidekiq::Batch.new }
     let(:bid) { batch.bid }
     let(:jid) { 'ABCD' }
-    before { Sidekiq.redis { |r| r.hset("BID-#{bid}", 'to_process', 1) } }
+    before { Sidekiq.redis { |r| r.hset("BID-#{bid}", 'pending', 1) } }
 
     context 'complete' do
       let(:failed_jid) { 'xxx' }
-      before { batch.on(:complete, Object) }
-      before { batch.jobs do nil end }
-      before { batch.increment_job_queue(bid) }
-      before { Sidekiq::Batch.process_failed_job(bid, 'failed-job-id') }
 
       it 'tries to call complete callback' do
-        expect(Sidekiq::Batch::Callback).to receive(:enqueue_callback).with(:complete, bid)
+        expect(Sidekiq::Batch).to receive(:enqueue_callback).with(:complete, bid)
         Sidekiq::Batch.process_failed_job(bid, failed_jid)
       end
 
       it 'add job to failed list' do
+        Sidekiq::Batch.process_failed_job(bid, 'failed-job-id')
         Sidekiq::Batch.process_failed_job(bid, failed_jid)
         failed = Sidekiq.redis { |r| r.smembers("BID-#{bid}-failed") }
         expect(failed).to eq(['xxx', 'failed-job-id'])
@@ -96,10 +100,10 @@ describe Sidekiq::Batch do
 
     context 'success' do
       before { batch.on(:complete, Object) }
-      before { batch.jobs do nil end }
+
       it 'tries to call complete and success callbacks' do
-        expect(Sidekiq::Batch::Callback).to receive(:enqueue_callback).with(:complete, bid)
-        expect(Sidekiq::Batch::Callback).to receive(:enqueue_callback).with(:success, bid)
+        expect(Sidekiq::Batch).to receive(:enqueue_callback).with(:complete, bid)
+        expect(Sidekiq::Batch).to receive(:enqueue_callback).with(:success, bid)
         Sidekiq::Batch.process_successful_job(bid, jid)
       end
     end
@@ -113,22 +117,21 @@ describe Sidekiq::Batch do
 
     context 'complete' do
       before { batch.on(:complete, Object) }
-      before { batch.jobs do nil end }
-      before { Sidekiq::Batch.increment_job_queue(bid) }
+      # before { batch.increment_job_queue(bid) }
+      before { batch.jobs do TestWorker.perform_async end }
       before { Sidekiq::Batch.process_failed_job(bid, 'failed-job-id') }
 
       it 'tries to call complete callback' do
-        expect(subject).to receive(:enqueue_callback).with(:complete, bid)
-        Sidekiq::Batch.process_successful_job(bid, jid)
+        expect(Sidekiq::Batch).to receive(:enqueue_callback).with(:complete, bid)
+        Sidekiq::Batch.process_successful_job(bid, 'failed-job-id')
       end
     end
 
     context 'success' do
       before { batch.on(:complete, Object) }
-      before { batch.jobs do nil end }
       it 'tries to call complete and success callbacks' do
-        expect(Sidekiq::Batch::Callback).to receive(:enqueue_callback).with(:complete, bid)
-        expect(Sidekiq::Batch::Callback).to receive(:enqueue_callback).with(:success, bid)
+        expect(Sidekiq::Batch).to receive(:enqueue_callback).with(:complete, bid)
+        expect(Sidekiq::Batch).to receive(:enqueue_callback).with(:success, bid)
         Sidekiq::Batch.process_successful_job(bid, jid)
       end
 
@@ -141,21 +144,17 @@ describe Sidekiq::Batch do
 
   describe '#increment_job_queue' do
     let(:bid) { 'BID' }
-    it 'increments to_process counter' do
-      Sidekiq::Batch.increment_job_queue(bid)
-      to_process = Sidekiq.redis { |r| r.hget("BID-#{bid}", 'to_process') }
-      expect(to_process).to eq('1')
-    end
+    let(:batch) { Sidekiq::Batch.new }
 
     it 'increments pending' do
-      Sidekiq::Batch.increment_job_queue(bid)
-      pending = Sidekiq.redis { |r| r.hget("BID-#{bid}", 'pending') }
+      batch.jobs do TestWorker.perform_async end
+      pending = Sidekiq.redis { |r| r.hget("BID-#{batch.bid}", 'pending') }
       expect(pending).to eq('1')
     end
 
     it 'increments total' do
-      Sidekiq::Batch.increment_job_queue(bid)
-      total = Sidekiq.redis { |r| r.hget("BID-#{bid}", 'total') }
+      batch.jobs do TestWorker.perform_async end
+      total = Sidekiq.redis { |r| r.hget("BID-#{batch.bid}", 'total') }
       expect(total).to eq('1')
     end
   end

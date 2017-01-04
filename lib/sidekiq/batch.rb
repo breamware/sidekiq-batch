@@ -16,7 +16,7 @@ module Sidekiq
 
     def initialize(existing_bid = nil)
       @bid = existing_bid || SecureRandom.urlsafe_base64(10)
-      @existing = !existing_bid.nil?
+      @existing = existing_bid.present?
       @initialized = false
       @created_at = Time.now.utc.to_f
       @bidkey = "BID-" + @bid.to_s
@@ -78,7 +78,7 @@ module Sidekiq
         Sidekiq.redis do |r|
           r.multi do
             if parent_bid
-              r.hincrby("BID-#{parent_bid}", "kids", 1)
+              r.hincrby("BID-#{parent_bid}", "children", 1)
               r.expire("BID-#{parent_bid}", BID_EXPIRE_TTL)
             end
 
@@ -120,21 +120,22 @@ module Sidekiq
 
             r.hincrby("BID-#{bid}", "pending", 0)
             r.scard("BID-#{bid}-failed")
-            r.hincrby("BID-#{bid}", "kids", 0)
+            r.hincrby("BID-#{bid}", "children", 0)
             r.scard("BID-#{bid}-complete")
 
             r.expire("BID-#{bid}-failed", BID_EXPIRE_TTL)
           end
         end
+
         enqueue_callback(:complete, bid) if pending.to_i == failed.to_i && children == complete
       end
 
       def process_successful_job(bid, jid)
-        failed, pending, kids, complete, success, total, parent_bid = Sidekiq.redis do |r|
+        failed, pending, children, complete, success, total, parent_bid = Sidekiq.redis do |r|
           r.multi do
             r.scard("BID-#{bid}-failed")
             r.hincrby("BID-#{bid}", "pending", -1)
-            r.hincrby("BID-#{bid}", "kids", 0)
+            r.hincrby("BID-#{bid}", "children", 0)
             r.scard("BID-#{bid}-complete")
             r.scard("BID-#{bid}-success")
             r.hget("BID-#{bid}", "total")
@@ -147,8 +148,9 @@ module Sidekiq
         end
 
         puts "processed process_successful_job"
-        enqueue_callback(:complete, bid) if pending.to_i == failed.to_i && kids == complete
-        enqueue_callback(:success, bid) if pending.to_i.zero? && kids == success
+
+        enqueue_callback(:complete, bid) if pending.to_i == failed.to_i && children == complete
+        enqueue_callback(:success, bid) if pending.to_i.zero? && children == success
       end
 
       def enqueue_callback(event, bid)
@@ -166,7 +168,7 @@ module Sidekiq
         return unless callback
 
         begin
-          parent_bid = parent_bid.nil? ? nil : parent_bid
+          parent_bid = parent_bid.blank? ? nil : parent_bid
           opts    = JSON.parse(opts) if opts
           opts  ||= {}
           queue ||= 'default'

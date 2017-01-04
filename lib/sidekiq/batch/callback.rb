@@ -17,40 +17,49 @@ module Sidekiq
 
         def success(bid, status, parent_bid)
           if (parent_bid)
-            _, _, success, pending, kids = Sidekiq.redis do |r|
+            _, _, success, pending, children = Sidekiq.redis do |r|
               r.multi do
                 r.sadd("BID-#{parent_bid}-success", bid)
                 r.expire("BID-#{parent_bid}-success", Sidekiq::Batch::BID_EXPIRE_TTL)
                 r.scard("BID-#{parent_bid}-success")
                 r.hincrby("BID-#{parent_bid}", "pending", 0)
-                r.hincrby("BID-#{parent_bid}", "kids", 0)
+                r.hincrby("BID-#{parent_bid}", "children", 0)
               end
             end
 
-            Batch.enqueue_callback(:success, parent_bid) if pending.to_i.zero? && kids == success
+            Batch.enqueue_callback(:success, parent_bid) if pending.to_i.zero? && children == success
           end
 
           Sidekiq.redis do |r|
-            r.multi do
-              r.del "BID-#{bid}-success", "BID-#{bid}-complete", "BID-#{bid}-jids", "BID-#{bid}-failed"
-            end
+            r.del "BID-#{bid}-success", "BID-#{bid}-complete", "BID-#{bid}-jids", "BID-#{bid}-failed"
           end
         end
 
         def complete(bid, status, parent_bid)
           if (parent_bid)
-            _, complete, pending, kids, failure = Sidekiq.redis do |r|
+            _, complete, pending, children, failure = Sidekiq.redis do |r|
               r.multi do
                 r.sadd("BID-#{parent_bid}-complete", bid)
                 r.scard("BID-#{parent_bid}-complete")
                 r.hincrby("BID-#{parent_bid}", "pending", 0)
-                r.hincrby("BID-#{parent_bid}", "kids", 0)
+                r.hincrby("BID-#{parent_bid}", "children", 0)
                 r.hlen("BID-#{parent_bid}-failed")
               end
             end
 
-            Batch.enqueue_callback(:complete, parent_bid) if complete == kids && pending == failure
+            Batch.enqueue_callback(:complete, parent_bid) if complete == children && pending == failure
           end
+
+          pending, children, success = Sidekiq.redis do |r|
+            r.multi do
+              r.hincrby("BID-#{bid}", "pending", 0)
+              r.hincrby("BID-#{bid}", "children", 0)
+              r.scard("BID-#{bid}-success")
+            end
+          end
+
+          Batch.enqueue_callback(:success, bid) if pending.to_i.zero? && children == success
+
         end
 
       end

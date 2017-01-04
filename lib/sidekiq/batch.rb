@@ -99,8 +99,6 @@ module Sidekiq
     end
 
     def increment_job_queue(jid)
-      puts "RtQ: " + @ready_to_queue.to_s
-      puts "JID: " + jid.to_s
       @ready_to_queue << jid
     end
 

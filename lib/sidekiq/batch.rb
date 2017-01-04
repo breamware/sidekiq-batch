@@ -16,7 +16,7 @@ module Sidekiq
 
     def initialize(existing_bid = nil)
       @bid = existing_bid || SecureRandom.urlsafe_base64(10)
-      @existing = existing_bid.present?
+      @existing = !(!existing_bid || existing_bid.empty?)  # Basically existing_bid.present?
       @initialized = false
       @created_at = Time.now.utc.to_f
       @bidkey = "BID-" + @bid.to_s
@@ -168,7 +168,7 @@ module Sidekiq
         return unless callback
 
         begin
-          parent_bid = parent_bid.blank? ? nil : parent_bid
+          parent_bid = !parent_bid || parent_bid.empty? ? nil : parent_bid    # Basically parent_bid.blank?
           opts    = JSON.parse(opts) if opts
           opts  ||= {}
           queue ||= 'default'

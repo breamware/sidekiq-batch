@@ -117,7 +117,7 @@ module Sidekiq
       def process_failed_job(bid, jid)
         _, pending, failed, children, complete = Sidekiq.redis do |r|
           r.multi do
-            r.sadd("BID-#{bid}-failed", [jid])
+            r.sadd("BID-#{bid}-failed", jid)
 
             r.hincrby("BID-#{bid}", "pending", 0)
             r.scard("BID-#{bid}-failed")
@@ -142,7 +142,7 @@ module Sidekiq
             r.hget("BID-#{bid}", "total")
             r.hget("BID-#{bid}", "parent_bid")
 
-            r.hdel("BID-#{bid}-failed", jid)
+            r.srem("BID-#{bid}-failed", jid)
             r.srem("BID-#{bid}-jids", jid)
             r.expire("BID-#{bid}", BID_EXPIRE_TTL)
           end

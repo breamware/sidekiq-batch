@@ -48,7 +48,7 @@ module Sidekiq
           Thread.current[:bid]
         end
         Sidekiq::Worker.send(:define_method, 'batch') do
-          Sidekiq::Batch.new(Thread.current[:bid]) if Thread.current[:bid]
+          Sidekiq::Batch.new(Thread.current[:bid].bid) if Thread.current[:bid]
         end
       end
     end

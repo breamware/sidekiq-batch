@@ -20,6 +20,7 @@ module Sidekiq
       @initialized = false
       @created_at = Time.now.utc.to_f
       @bidkey = "BID-" + @bid.to_s
+      @ready_to_queue = []
     end
 
     def description=(description)
@@ -98,6 +99,8 @@ module Sidekiq
     end
 
     def increment_job_queue(jid)
+      puts "RtQ: " + @ready_to_queue.to_s
+      puts "JID: " + jid.to_s
       @ready_to_queue << jid
     end
 

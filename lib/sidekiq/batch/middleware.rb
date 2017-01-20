@@ -3,8 +3,8 @@ module Sidekiq
     module Middleware
       class ClientMiddleware
         def call(_worker, msg, _queue, _redis_pool = nil)
-          if (bid = Thread.current[:bid])
-            Batch.increment_job_queue(bid) if (msg[:bid] = bid)
+          if (batch = Thread.current[:bid])
+            batch.increment_job_queue([ msg['jid'] ]) if (msg[:bid] = batch.bid)
           end
           yield
         end
@@ -17,7 +17,7 @@ module Sidekiq
               Thread.current[:bid] = bid
               yield
               Thread.current[:bid] = nil
-              Batch.process_successful_job(bid)
+              Batch.process_successful_job(bid, msg['jid'])
             rescue
               Batch.process_failed_job(bid, msg['jid'])
               raise
@@ -48,7 +48,7 @@ module Sidekiq
           Thread.current[:bid]
         end
         Sidekiq::Worker.send(:define_method, 'batch') do
-          Sidekiq::Batch.new(Thread.current[:bid]) if Thread.current[:bid]
+          Sidekiq::Batch.new(Thread.current[:bid].bid) if Thread.current[:bid]
         end
       end
     end

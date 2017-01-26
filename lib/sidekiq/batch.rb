@@ -74,7 +74,7 @@ module Sidekiq
           Thread.current[:bid] = parent
         end
 
-        return [] unless @ready_to_queue.size > 0
+        return [] if @ready_to_queue.size == 0
 
         Sidekiq.redis do |r|
           r.multi do
@@ -95,6 +95,12 @@ module Sidekiq
         @ready_to_queue
       ensure
         Thread.current[:bid_data] = bid_data
+      end
+    end
+
+    def invalidate_all
+      Sidekiq.redis do |r|
+        r.setex("invalidated-bid-#{bid}", BID_EXPIRE_TTL, 1)
       end
     end
 

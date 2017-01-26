@@ -1,6 +1,5 @@
 require 'spec_helper'
 
-
 class TestWorker
   include Sidekiq::Worker
   def perform
@@ -73,6 +72,30 @@ describe Sidekiq::Batch do
       batch.jobs do
         expect(Thread.current[:bid]).to eq(batch)
       end
+    end
+  end
+
+  describe '#invalidate_all' do
+    class InvalidatableJob
+      include Sidekiq::Worker
+
+      def perform
+        return unless valid_within_batch?
+        was_performed
+      end
+
+      def was_performed; end
+    end
+
+    it 'marks batch in redis as invalidated' do
+      batch = Sidekiq::Batch.new
+      job = InvalidatableJob.new
+      allow(job).to receive(:was_performed)
+
+      batch.invalidate_all
+      batch.jobs { job.perform }
+
+      expect(job).not_to have_received(:was_performed)
     end
   end
 

@@ -50,6 +50,9 @@ module Sidekiq
         Sidekiq::Worker.send(:define_method, 'batch') do
           Sidekiq::Batch.new(Thread.current[:bid].bid) if Thread.current[:bid]
         end
+        Sidekiq::Worker.send(:define_method, 'valid_within_batch?') do
+          !Sidekiq.redis { |r| r.exists("invalidated-bid-#{batch.bid}") }
+        end
       end
     end
   end

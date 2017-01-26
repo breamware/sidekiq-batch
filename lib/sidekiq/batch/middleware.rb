@@ -1,3 +1,5 @@
+require_relative 'extension/worker'
+
 module Sidekiq
   class Batch
     module Middleware
@@ -44,15 +46,7 @@ module Sidekiq
             chain.add Sidekiq::Batch::Middleware::ServerMiddleware
           end
         end
-        Sidekiq::Worker.send(:define_method, 'bid') do
-          Thread.current[:bid]
-        end
-        Sidekiq::Worker.send(:define_method, 'batch') do
-          Sidekiq::Batch.new(Thread.current[:bid].bid) if Thread.current[:bid]
-        end
-        Sidekiq::Worker.send(:define_method, 'valid_within_batch?') do
-          !Sidekiq.redis { |r| r.exists("invalidated-bid-#{batch.bid}") }
-        end
+        Sidekiq::Worker.send(:include, Sidekiq::Batch::Extension::Worker)
       end
     end
   end

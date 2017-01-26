@@ -9,7 +9,7 @@ module Sidekiq::Batch::Extension
     end
 
     def valid_within_batch?
-      !Sidekiq.redis { |r| r.exists("invalidated-bid-#{batch.bid}") }
+      batch.valid?
     end
   end
 end

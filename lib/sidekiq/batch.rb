@@ -98,14 +98,31 @@ module Sidekiq
       end
     end
 
+    def increment_job_queue(jid)
+      @ready_to_queue << jid
+    end
+
     def invalidate_all
       Sidekiq.redis do |r|
         r.setex("invalidated-bid-#{bid}", BID_EXPIRE_TTL, 1)
       end
     end
 
-    def increment_job_queue(jid)
-      @ready_to_queue << jid
+    def parent_bid
+      Sidekiq.redis do |r|
+        r.hget(@bidkey, "parent_bid")
+      end
+    end
+
+    def parent
+      if parent_bid
+        Sidekiq::Batch.new(parent_bid)
+      end
+    end
+
+    def valid?(batch = self)
+      valid = !Sidekiq.redis { |r| r.exists("invalidated-bid-#{batch.bid}") }
+      batch.parent ? valid && valid?(batch.parent) : valid
     end
 
     private

@@ -1,6 +1,5 @@
 require 'spec_helper'
 
-
 class TestWorker
   include Sidekiq::Worker
   def perform
@@ -72,6 +71,83 @@ describe Sidekiq::Batch do
       batch = Sidekiq::Batch.new
       batch.jobs do
         expect(Thread.current[:bid]).to eq(batch)
+      end
+    end
+  end
+
+  describe '#invalidate_all' do
+    class InvalidatableJob
+      include Sidekiq::Worker
+
+      def perform
+        return unless valid_within_batch?
+        was_performed
+      end
+
+      def was_performed; end
+    end
+
+    it 'marks batch in redis as invalidated' do
+      batch = Sidekiq::Batch.new
+      job = InvalidatableJob.new
+      allow(job).to receive(:was_performed)
+
+      batch.invalidate_all
+      batch.jobs { job.perform }
+
+      expect(job).not_to have_received(:was_performed)
+    end
+
+    context 'nested batches' do
+      let(:batch_parent) { Sidekiq::Batch.new }
+      let(:batch_child_1) { Sidekiq::Batch.new }
+      let(:batch_child_2) { Sidekiq::Batch.new }
+      let(:job_of_parent) { InvalidatableJob.new }
+      let(:job_of_child_1) { InvalidatableJob.new }
+      let(:job_of_child_2) { InvalidatableJob.new }
+
+      before do
+        allow(job_of_parent).to receive(:was_performed)
+        allow(job_of_child_1).to receive(:was_performed)
+        allow(job_of_child_2).to receive(:was_performed)
+      end
+
+      it 'invalidates all job if parent batch is marked as invalidated' do
+        batch_parent.invalidate_all
+        batch_parent.jobs do
+          [
+            job_of_parent.perform,
+            batch_child_1.jobs do
+              [
+                job_of_child_1.perform,
+                batch_child_2.jobs { job_of_child_2.perform }
+              ]
+            end
+          ]
+        end
+
+        expect(job_of_parent).not_to have_received(:was_performed)
+        expect(job_of_child_1).not_to have_received(:was_performed)
+        expect(job_of_child_2).not_to have_received(:was_performed)
+      end
+
+      it 'invalidates only requested batch' do
+        batch_child_2.invalidate_all
+        batch_parent.jobs do
+          [
+            job_of_parent.perform,
+            batch_child_1.jobs do
+              [
+                job_of_child_1.perform,
+                batch_child_2.jobs { job_of_child_2.perform }
+              ]
+            end
+          ]
+        end
+
+        expect(job_of_parent).to have_received(:was_performed)
+        expect(job_of_child_1).to have_received(:was_performed)
+        expect(job_of_child_2).not_to have_received(:was_performed)
       end
     end
   end

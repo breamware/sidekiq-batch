@@ -1,8 +1,6 @@
 require 'spec_helper'
 
 describe Sidekiq::Batch::Callback::Worker do
-  class SampleCallback; end
-
   describe '#perform' do
     it 'does not do anything if it cannot find the callback class' do
       subject.perform('SampleCallback', 'complete', {}, 'ABCD', 'EFGH')

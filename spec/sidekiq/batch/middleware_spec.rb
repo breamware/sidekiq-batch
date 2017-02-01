@@ -106,9 +106,15 @@ describe Sidekiq::Batch::Middleware do
 
   context 'worker' do
     it 'defines method bid' do
-      expect(Sidekiq::Worker).to receive(:define_method).with('bid').and_yield
-      expect(Sidekiq::Worker).to receive(:define_method).with('batch').and_yield
-      Sidekiq::Batch::Middleware.configure
+      expect(Sidekiq::Worker.instance_methods).to include(:bid)
+    end
+
+    it 'defines method batch' do
+      expect(Sidekiq::Worker.instance_methods).to include(:batch)
+    end
+
+    it 'defines method valid_within_batch?' do
+      expect(Sidekiq::Worker.instance_methods).to include(:valid_within_batch?)
     end
   end
 end

@@ -6,7 +6,7 @@ module Sidekiq
       class ClientMiddleware
         def call(_worker, msg, _queue, _redis_pool = nil)
           if (batch = Thread.current[:bid])
-            batch.increment_job_queue([ msg['jid'] ]) if (msg[:bid] = batch.bid)
+            batch.increment_job_queue(msg['jid']) if (msg[:bid] = batch.bid)
           end
           yield
         end

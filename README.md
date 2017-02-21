@@ -4,6 +4,8 @@
 
 # Sidekiq::Batch
 
+[![Join the chat at https://gitter.im/breamware/sidekiq-batch](https://badges.gitter.im/breamware/sidekiq-batch.svg)](https://gitter.im/breamware/sidekiq-batch?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [![Gem Version](https://badge.fury.io/rb/sidekiq-batch.svg)][gem]
 [![Build Status](https://travis-ci.org/breamware/sidekiq-batch.svg?branch=master)][travis]
 [![Code Climate](https://codeclimate.com/github/breamware/sidekiq-batch/badges/gpa.svg)][codeclimate]

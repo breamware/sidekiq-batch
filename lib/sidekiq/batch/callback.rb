@@ -27,7 +27,7 @@ module Sidekiq
               end
             end
 
-            Batch.enqueue_callback(:success, parent_bid) if pending.to_i.zero? && children == success
+            Batch.enqueue_callbacks(:success, parent_bid) if pending.to_i.zero? && children == success
           end
 
           Sidekiq.redis do |r|
@@ -47,7 +47,7 @@ module Sidekiq
               end
             end
 
-            Batch.enqueue_callback(:complete, parent_bid) if complete == children && pending == failure
+            Batch.enqueue_callbacks(:complete, parent_bid) if complete == children && pending == failure
           end
 
           pending, children, success = Sidekiq.redis do |r|
@@ -58,7 +58,7 @@ module Sidekiq
             end
           end
 
-          Batch.enqueue_callback(:success, bid) if pending.to_i.zero? && children == success
+          Batch.enqueue_callbacks(:success, bid) if pending.to_i.zero? && children == success
 
         end
 

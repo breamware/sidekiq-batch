@@ -35,11 +35,14 @@ module Sidekiq
 
     def on(event, callback, options = {})
       return unless %w(success complete).include?(event.to_s)
+      callback_key = "#{@bidkey}-callbacks-#{event}"
       Sidekiq.redis do |r|
         r.multi do
-          r.hset(@bidkey, "callback_#{event}", callback)
-          r.hset(@bidkey, "callback_#{event}_opts", options.to_json)
-          r.expire(@bidkey, BID_EXPIRE_TTL)
+          r.sadd(callback_key, JSON.unparse({
+            callback: callback,
+            opts: options
+          }))
+          r.expire(callback_key, BID_EXPIRE_TTL)
         end
       end
     end
@@ -151,7 +154,7 @@ module Sidekiq
           end
         end
 
-        enqueue_callback(:complete, bid) if pending.to_i == failed.to_i && children == complete
+        enqueue_callbacks(:complete, bid) if pending.to_i == failed.to_i && children == complete
       end
 
       def process_successful_job(bid, jid)
@@ -173,32 +176,34 @@ module Sidekiq
 
         puts "processed process_successful_job"
 
-        enqueue_callback(:complete, bid) if pending.to_i == failed.to_i && children == complete
-        enqueue_callback(:success, bid) if pending.to_i.zero? && children == success
+        enqueue_callbacks(:complete, bid) if pending.to_i == failed.to_i && children == complete
+        enqueue_callbacks(:success, bid) if pending.to_i.zero? && children == success
       end
 
-      def enqueue_callback(event, bid)
-        needed, _, callback, opts, queue, parent_bid = Sidekiq.redis do |r|
+      def enqueue_callbacks(event, bid)
+        batch_key = "BID-#{bid}"
+        callback_key = "#{batch_key}-callbacks-#{event}"
+        needed, _, callbacks, queue, parent_bid = Sidekiq.redis do |r|
           r.multi do
-            r.hget("BID-#{bid}", event)
-            r.hset("BID-#{bid}", event, true)
-            r.hget("BID-#{bid}", "callback_#{event}")
-            r.hget("BID-#{bid}", "callback_#{event}_opts")
-            r.hget("BID-#{bid}", "callback_queue")
-            r.hget("BID-#{bid}", "parent_bid")
+            r.hget(batch_key, event)
+            r.hset(batch_key, event, true)
+            r.smembers(callback_key)
+            r.hget(batch_key, "callback_queue")
+            r.hget(batch_key, "parent_bid")
           end
         end
-        return if 'true' == needed
-        return unless callback
+        return if needed == 'true'
 
         begin
           parent_bid = !parent_bid || parent_bid.empty? ? nil : parent_bid    # Basically parent_bid.blank?
-          opts    = JSON.parse(opts) if opts
-          opts  ||= {}
-          queue ||= 'default'
-          Sidekiq::Client.push('class' => Sidekiq::Batch::Callback::Worker,
-                               'args' => [callback, event, opts, bid, parent_bid],
-                               'queue' => queue)
+          Sidekiq::Client.push_bulk(
+            'class' => Sidekiq::Batch::Callback::Worker,
+            'args' => callbacks.reduce([]) do |memo, jcb|
+              cb = Sidekiq.load_json(jcb)
+              memo << [cb['callback'], event, cb['opts'], bid, parent_bid]
+            end,
+            'queue' => queue ||= 'default'
+          ) unless callbacks.empty?
         ensure
           cleanup_redis(bid) if event == :success
         end
@@ -207,11 +212,11 @@ module Sidekiq
       def cleanup_redis(bid)
         Sidekiq.redis do |r|
           r.del("BID-#{bid}",
+                "BID-#{bid}-callbacks-complete",
+                "BID-#{bid}-callbacks-success",
                 "BID-#{bid}-failed")
         end
       end
-
-
     end
   end
 end

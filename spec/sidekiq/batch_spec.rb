@@ -162,7 +162,7 @@ describe Sidekiq::Batch do
       let(:failed_jid) { 'xxx' }
 
       it 'tries to call complete callback' do
-        expect(Sidekiq::Batch).to receive(:enqueue_callback).with(:complete, bid)
+        expect(Sidekiq::Batch).to receive(:enqueue_callbacks).with(:complete, bid)
         Sidekiq::Batch.process_failed_job(bid, failed_jid)
       end
 
@@ -171,16 +171,6 @@ describe Sidekiq::Batch do
         Sidekiq::Batch.process_failed_job(bid, failed_jid)
         failed = Sidekiq.redis { |r| r.smembers("BID-#{bid}-failed") }
         expect(failed).to eq(['xxx', 'failed-job-id'])
-      end
-    end
-
-    context 'success' do
-      before { batch.on(:complete, Object) }
-
-      it 'tries to call complete and success callbacks' do
-        expect(Sidekiq::Batch).to receive(:enqueue_callback).with(:complete, bid)
-        expect(Sidekiq::Batch).to receive(:enqueue_callback).with(:success, bid)
-        Sidekiq::Batch.process_successful_job(bid, jid)
       end
     end
   end
@@ -198,7 +188,7 @@ describe Sidekiq::Batch do
       before { Sidekiq::Batch.process_failed_job(bid, 'failed-job-id') }
 
       it 'tries to call complete callback' do
-        expect(Sidekiq::Batch).to receive(:enqueue_callback).with(:complete, bid)
+        expect(Sidekiq::Batch).to receive(:enqueue_callbacks).with(:complete, bid)
         Sidekiq::Batch.process_successful_job(bid, 'failed-job-id')
       end
     end
@@ -206,8 +196,8 @@ describe Sidekiq::Batch do
     context 'success' do
       before { batch.on(:complete, Object) }
       it 'tries to call complete and success callbacks' do
-        expect(Sidekiq::Batch).to receive(:enqueue_callback).with(:complete, bid)
-        expect(Sidekiq::Batch).to receive(:enqueue_callback).with(:success, bid)
+        expect(Sidekiq::Batch).to receive(:enqueue_callbacks).with(:complete, bid)
+        expect(Sidekiq::Batch).to receive(:enqueue_callbacks).with(:success, bid)
         Sidekiq::Batch.process_successful_job(bid, jid)
       end
 
@@ -235,20 +225,38 @@ describe Sidekiq::Batch do
     end
   end
 
-  describe '#enqueue_callback' do
+  describe '#enqueue_callbacks' do
     let(:callback) { double('callback') }
-    let(:event) { 'complete' }
+    let(:event) { :complete }
 
-    it 'clears redis keys on success'
+    context 'on :success' do
+      let(:event) { :success }
+      context 'when no callbacks are defined' do
+        it 'clears redis keys' do
+          batch = Sidekiq::Batch.new
+          expect(Sidekiq::Batch).to receive(:cleanup_redis).with(batch.bid)
+          Sidekiq::Batch.enqueue_callbacks(event, batch.bid)
+        end
+      end
+
+      context 'when callbacks are defined' do
+        it 'clears redis keys' do
+          batch = Sidekiq::Batch.new
+          batch.on(event, SampleCallback)
+          expect(Sidekiq::Batch).to receive(:cleanup_redis).with(batch.bid)
+          Sidekiq::Batch.enqueue_callbacks(event, batch.bid)
+        end
+      end
+    end
 
     context 'when already called' do
-      it 'returns and do not call callback' do
+      it 'returns and does not enqueue callbacks' do
         batch = Sidekiq::Batch.new
-        batch.on(:complete, SampleCallback)
+        batch.on(event, SampleCallback)
         Sidekiq.redis { |r| r.hset("BID-#{batch.bid}", event, true) }
 
         expect(Sidekiq::Client).not_to receive(:push)
-        Sidekiq::Batch.enqueue_callback(event, batch.bid)
+        Sidekiq::Batch.enqueue_callbacks(event, batch.bid)
       end
     end
 
@@ -258,7 +266,7 @@ describe Sidekiq::Batch do
           batch = Sidekiq::Batch.new
 
           expect(Sidekiq::Client).not_to receive(:push)
-          Sidekiq::Batch.enqueue_callback(event, batch.bid)
+          Sidekiq::Batch.enqueue_callbacks(event, batch.bid)
         end
       end
 
@@ -267,14 +275,36 @@ describe Sidekiq::Batch do
 
         it 'calls it passing options' do
           batch = Sidekiq::Batch.new
-          batch.on(:complete, SampleCallback, opts)
+          batch.on(event, SampleCallback, opts)
 
-          expect(Sidekiq::Client).to receive(:push).with(
+          expect(Sidekiq::Client).to receive(:push_bulk).with(
             'class' => Sidekiq::Batch::Callback::Worker,
-            'args' => ['SampleCallback', 'complete', opts, batch.bid, nil],
+            'args' => [['SampleCallback', event, opts, batch.bid, nil]],
             'queue' => 'default'
           )
-          Sidekiq::Batch.enqueue_callback(event, batch.bid)
+          Sidekiq::Batch.enqueue_callbacks(event, batch.bid)
+        end
+      end
+
+      context 'when multiple callbacks are defined' do
+        let(:opts) { { 'a' => 'b' } }
+        let(:opts2) { { 'b' => 'a' } }
+
+        it 'enqueues each callback passing their options' do
+          batch = Sidekiq::Batch.new
+          batch.on(event, SampleCallback, opts)
+          batch.on(event, SampleCallback2, opts2)
+
+          expect(Sidekiq::Client).to receive(:push_bulk).with(
+            'class' => Sidekiq::Batch::Callback::Worker,
+            'args' => [
+              ['SampleCallback2', event, opts2, batch.bid, nil],
+              ['SampleCallback', event, opts, batch.bid, nil]
+            ],
+            'queue' => 'default'
+          )
+
+          Sidekiq::Batch.enqueue_callbacks(event, batch.bid)
         end
       end
     end

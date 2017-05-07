@@ -16,7 +16,7 @@ module Sidekiq
         def call(_worker, msg, _queue)
           if (bid = msg['bid'])
             begin
-              Thread.current[:bid] = bid
+              Thread.current[:bid] = Sidekiq::Batch.new(bid)
               yield
               Thread.current[:bid] = nil
               Batch.process_successful_job(bid, msg['jid'])

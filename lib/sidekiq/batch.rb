@@ -174,7 +174,7 @@ module Sidekiq
           end
         end
 
-        puts "processed process_successful_job"
+        Sidekiq.logger.info "done: #{jid} in batch #{bid}"
 
         enqueue_callbacks(:complete, bid) if pending.to_i == failed.to_i && children == complete
         enqueue_callbacks(:success, bid) if pending.to_i.zero? && children == success

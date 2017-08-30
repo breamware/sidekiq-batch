@@ -9,7 +9,7 @@ module Sidekiq
           clazz, method = clazz.split("#") if (clazz.class == String && clazz.include?("#"))
           method = "on_#{event}" if method.nil?
           status = Sidekiq::Batch::Status.new(bid)
-          clazz.constantize.new.send(method, status, opts) rescue nil
+          clazz.constantize.new.send(method, status, opts)
 
           send(event.to_sym, bid, status, parent_bid)
         end

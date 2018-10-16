@@ -1,6 +1,5 @@
 require 'spec_helper'
 
-
 class WorkerA
   include Sidekiq::Worker
   def perform
@@ -18,7 +17,6 @@ class WorkerC
   def perform
   end
 end
-
 
 describe 'Batch flow' do
   context 'when handling a batch' do

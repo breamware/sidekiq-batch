@@ -10,7 +10,7 @@ module Sidekiq
   class Batch
     class NoBlockGivenError < StandardError; end
 
-    BID_EXPIRE_TTL = 108_000
+    BID_EXPIRE_TTL = 2_592_000
 
     attr_reader :bid, :description, :callback_queue, :created_at
 

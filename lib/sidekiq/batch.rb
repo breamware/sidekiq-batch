@@ -54,7 +54,7 @@ module Sidekiq
 
       begin
         if !@existing && !@initialized
-          parent_bid = Thread.current[:bid].bid if Thread.current[:bid]
+          parent_bid = Thread.current[:batch].bid if Thread.current[:batch]
 
           Sidekiq.redis do |r|
             r.multi do
@@ -70,11 +70,11 @@ module Sidekiq
         @ready_to_queue = []
 
         begin
-          parent = Thread.current[:bid]
-          Thread.current[:bid] = self
+          parent = Thread.current[:batch]
+          Thread.current[:batch] = self
           yield
         ensure
-          Thread.current[:bid] = parent
+          Thread.current[:batch] = parent
         end
 
         return [] if @ready_to_queue.size == 0

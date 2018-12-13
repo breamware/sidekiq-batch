@@ -1,11 +1,11 @@
 module Sidekiq::Batch::Extension
   module Worker
     def bid
-      Thread.current[:bid]
+      Thread.current[:batch].bid
     end
 
     def batch
-      Sidekiq::Batch.new(Thread.current[:bid].bid) if Thread.current[:bid]
+      Thread.current[:batch]
     end
 
     def valid_within_batch?

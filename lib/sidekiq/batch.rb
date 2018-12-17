@@ -176,8 +176,8 @@ module Sidekiq
 
         Sidekiq.logger.info "done: #{jid} in batch #{bid}"
 
-        enqueue_callbacks(:complete, bid) if pending.to_i == failed.to_i && children == complete
-        enqueue_callbacks(:success, bid) if pending.to_i.zero? && children == success
+        # if complete or successfull call complete callback (the complete callback may then call successful)
+        enqueue_callbacks(:complete, bid) if (pending.to_i == failed.to_i && children == complete) || (pending.to_i.zero? && children == success)
       end
 
       def enqueue_callbacks(event, bid)

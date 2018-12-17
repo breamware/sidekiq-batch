@@ -83,6 +83,7 @@ module Sidekiq
           r.multi do
             if parent_bid
               r.hincrby("BID-#{parent_bid}", "children", 1)
+              r.hincrby(@bidkey, "total", @ready_to_queue.size)
               r.expire("BID-#{parent_bid}", BID_EXPIRE_TTL)
             end
 
@@ -141,7 +142,7 @@ module Sidekiq
 
     class << self
       def process_failed_job(bid, jid)
-        _, pending, failed, children, complete = Sidekiq.redis do |r|
+        _, pending, failed, children, complete, parent_bid = Sidekiq.redis do |r|
           r.multi do
             r.sadd("BID-#{bid}-failed", jid)
 
@@ -149,8 +150,20 @@ module Sidekiq
             r.scard("BID-#{bid}-failed")
             r.hincrby("BID-#{bid}", "children", 0)
             r.scard("BID-#{bid}-complete")
+            r.hget("BID-#{bid}", "parent_bid")
 
             r.expire("BID-#{bid}-failed", BID_EXPIRE_TTL)
+          end
+        end
+        
+        # if the batch failed, and has a parent, update the parent to show one pending and failed job
+        if parent_bid
+          Sidekiq.redis do |r|
+            r.multi do
+              r.hincrby("BID-#{parent_bid}", "pending", 1)
+              r.sadd("BID-#{parent_bid}-failed", jid)
+              r.expire("BID-#{parent_bid}-failed", BID_EXPIRE_TTL)
+            end
           end
         end
 

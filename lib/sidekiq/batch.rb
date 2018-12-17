@@ -83,7 +83,7 @@ module Sidekiq
           r.multi do
             if parent_bid
               r.hincrby("BID-#{parent_bid}", "children", 1)
-              r.hincrby(@bidkey, "total", @ready_to_queue.size)
+              r.hincrby("BID-#{parent_bid}", "total", @ready_to_queue.size)
               r.expire("BID-#{parent_bid}", BID_EXPIRE_TTL)
             end
 

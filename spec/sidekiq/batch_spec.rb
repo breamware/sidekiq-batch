@@ -195,9 +195,8 @@ describe Sidekiq::Batch do
 
     context 'success' do
       before { batch.on(:complete, Object) }
-      it 'tries to call complete and success callbacks' do
+      it 'tries to call complete callback' do
         expect(Sidekiq::Batch).to receive(:enqueue_callbacks).with(:complete, bid)
-        expect(Sidekiq::Batch).to receive(:enqueue_callbacks).with(:success, bid)
         Sidekiq::Batch.process_successful_job(bid, jid)
       end
 
@@ -248,7 +247,7 @@ describe Sidekiq::Batch do
         end
       end
     end
-
+    
     context 'when already called' do
       it 'returns and does not enqueue callbacks' do
         batch = Sidekiq::Batch.new

@@ -212,11 +212,11 @@ module Sidekiq
           Sidekiq::Client.push_bulk(
             'class' => Sidekiq::Batch::Callback::Worker,
             'args' => callbacks.reduce([]) do |memo, jcb|
-              cb = Sidekiq.load_json(jcb)
+              cb = Sidekiq.load_json(jcb) || {'callback': nil}
               memo << [cb['callback'], event, cb['opts'], bid, parent_bid]
             end,
             'queue' => queue ||= 'default'
-          ) unless callbacks.empty?
+          )
         ensure
           cleanup_redis(bid) if event == :success
         end

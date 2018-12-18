@@ -6,11 +6,11 @@ module Sidekiq
 
         def perform(clazz, event, opts, bid, parent_bid)
           return unless %w(success complete).include?(event)
-          clazz, method = clazz.split("#") if (clazz.class == String && clazz.include?("#"))
+          clazz, method = clazz.split("#") if (clazz && clazz.class == String && clazz.include?("#"))
           method = "on_#{event}" if method.nil?
           status = Sidekiq::Batch::Status.new(bid)
 
-          if object = Object.const_get(clazz)
+          if clazz && object = Object.const_get(clazz)
             instance = object.new
             instance.send(method, status, opts) if instance.respond_to?(method)
           end
@@ -38,6 +38,10 @@ module Sidekiq
             Batch.enqueue_callbacks(:success, parent_bid) if pending.to_i.zero? && children == success
             # if job finished successfully and parent batch completed call parent complete callback
             Batch.enqueue_callbacks(:complete, parent_bid) if complete == children && pending == failure
+          end
+
+          Sidekiq.redis do |r|
+            r.del "BID-#{bid}-success", "BID-#{bid}-complete", "BID-#{bid}-jids", "BID-#{bid}-failed"
           end
         end
 

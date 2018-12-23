@@ -108,12 +108,12 @@ end
 
 class MyCallback
   def on_success(status, options)
-    Sidekiq.logger.info "Success Overall #{options} #{status.data}"
+    Sidekiq.logger.info "Overall Success #{options} #{status.data}"
   end
   alias_method :multi, :on_success
 
   def on_complete(status, options)
-    Sidekiq.logger.info "Complete Overall #{options} #{status.data}"
+    Sidekiq.logger.info "Overall Complete #{options} #{status.data}"
   end
 end
 
@@ -130,10 +130,24 @@ end
 
 puts "Overall bid #{overall.bid}"
 
-dump_redis_keys
-
-puts Sidekiq::Worker.jobs
+out_buf = StringIO.new
+Sidekiq.logger = Logger.new out_buf
 
 Sidekiq::Worker.drain_all
 
-dump_redis_keys
+output = out_buf.string
+puts out_buf.string
+
+describe "sidekiq batch" do
+  it "runs overall complete callback" do
+    expect(output).to include "Overall Complete"
+  end
+
+  it "runs overall success callback" do
+    expect(output).to include "Overall Success"
+  end
+
+  it "cleans redis keys" do
+    expect(redis_keys).to eq([])
+  end
+end

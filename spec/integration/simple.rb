@@ -23,10 +23,6 @@ class Worker2
   def perform
     Sidekiq.logger.info "Work2"
   end
-
-  def on_complete status, opts
-    Sidekiq.logger.info "Worker 2 Complete"
-  end
 end
 
 class SomeClass
@@ -47,11 +43,23 @@ end
 
 puts "Overall bid #{batch.bid}"
 
-dump_redis_keys
+out_buf = StringIO.new
+Sidekiq.logger = Logger.new out_buf
 
 Sidekiq::Worker.drain_all
 
-describe("sidekiq batch") do
+output = out_buf.string
+puts out_buf.string
+
+describe "sidekiq batch" do
+  it "runs overall complete callback" do
+    expect(output).to include "Overall Complete"
+  end
+
+  it "runs overall success callback" do
+    expect(output).to include "Overall Success"
+  end
+
   it "cleans redis keys" do
     expect(redis_keys).to eq([])
   end

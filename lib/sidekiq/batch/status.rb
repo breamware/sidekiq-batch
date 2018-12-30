@@ -45,13 +45,15 @@ module Sidekiq
 
       def data
         {
+          bid: bid,
           total: total,
           failures: failures,
           pending: pending,
           created_at: created_at,
           complete: complete?,
           failure_info: failure_info,
-          parent_bid: parent_bid
+          parent_bid: parent_bid,
+          child_count: child_count
         }
       end
     end

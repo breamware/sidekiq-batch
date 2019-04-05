@@ -6,11 +6,11 @@ module Sidekiq
 
         def perform(clazz, event, opts, bid, parent_bid)
           return unless %w(success complete).include?(event)
-          clazz, method = clazz.split("#") if (clazz.class == String && clazz.include?("#"))
+          clazz, method = clazz.split("#") if (clazz && clazz.class == String && clazz.include?("#"))
           method = "on_#{event}" if method.nil?
           status = Sidekiq::Batch::Status.new(bid)
 
-          if object = Object.const_get(clazz)
+          if clazz && object = Object.const_get(clazz)
             instance = object.new
             instance.send(method, status, opts) if instance.respond_to?(method)
           end
@@ -39,17 +39,23 @@ module Sidekiq
         def success(bid, status, parent_bid)
           Sidekiq.logger.debug {"Finalize parent success bid: #{parent_bid}"}
           if (parent_bid)
-            _, _, success, pending, children = Sidekiq.redis do |r|
+            _, _, success, _, complete, pending, children, failure = Sidekiq.redis do |r|
               r.multi do
                 r.sadd("BID-#{parent_bid}-success", bid)
                 r.expire("BID-#{parent_bid}-success", Sidekiq::Batch::BID_EXPIRE_TTL)
                 r.scard("BID-#{parent_bid}-success")
+                r.sadd("BID-#{parent_bid}-complete", bid)
+                r.scard("BID-#{parent_bid}-complete")
                 r.hincrby("BID-#{parent_bid}", "pending", 0)
                 r.hincrby("BID-#{parent_bid}", "children", 0)
+                r.scard("BID-#{parent_bid}-failed")
               end
             end
 
+            # if job finished successfully and parent finished successfully call parent success callback
             Batch.enqueue_callbacks(:success, parent_bid) if pending.to_i.zero? && children == success
+            # if job finished successfully and parent batch completed call parent complete callback
+            Batch.enqueue_callbacks(:complete, parent_bid) if complete == children && pending == failure
           end
         end
 
@@ -63,13 +69,14 @@ module Sidekiq
                 r.scard("BID-#{parent_bid}-complete")
                 r.hincrby("BID-#{parent_bid}", "pending", 0)
                 r.hincrby("BID-#{parent_bid}", "children", 0)
-                r.hlen("BID-#{parent_bid}-failed")
+                r.scard("BID-#{parent_bid}-failed")
               end
             end
 
             Batch.enqueue_callbacks(:complete, parent_bid) if complete == children && pending == failure
           end
         end
+
         def cleanup_redis bid, callback_bid=nil
           Sidekiq::Batch.cleanup_redis bid
           Sidekiq::Batch.cleanup_redis callback_bid if callback_bid

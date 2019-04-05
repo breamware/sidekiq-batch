@@ -1,12 +1,14 @@
-require 'sidekiq/batch'
+require 'integration_helper'
 
-Sidekiq.redis { |r| r.flushdb }
+# Simple test of adding jobs to the current batch
+# Batches:
+# - Overall (TestWoker) + Another worker
 
 class AnotherWorker
   include Sidekiq::Worker
 
   def perform
-    sleep 10
+    Sidekiq.logger.info "Another Worker"
   end
 end
 
@@ -14,7 +16,7 @@ class TestWorker
   include Sidekiq::Worker
 
   def perform
-    sleep 1
+    Sidekiq.logger.info "Test Worker"
     if bid
       batch.jobs do
         AnotherWorker.perform_async
@@ -25,12 +27,12 @@ end
 
 class MyCallback
   def on_success(status, options)
-    puts "Success #{options} #{status.data}"
+    Sidekiq.logger.info "Success #{options} #{status.data}"
   end
   alias_method :multi, :on_success
 
   def on_complete(status, options)
-    puts "Complete #{options} #{status.data}"
+    Sidekiq.logger.info "Complete #{options} #{status.data}"
   end
 end
 
@@ -48,10 +50,8 @@ batch.jobs do
 end
 puts Sidekiq::Batch::Status.new(batch.bid).data
 
-Thread.new do
-  loop do
-    sleep 1
-    keys = Sidekiq.redis { |r| r.keys('BID-*') }
-    puts keys.inspect
-  end
-end
+dump_redis_keys
+
+Sidekiq::Worker.drain_all
+
+dump_redis_keys

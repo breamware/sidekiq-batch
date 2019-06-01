@@ -137,6 +137,7 @@ Sidekiq::Worker.drain_all
 
 output = out_buf.string
 puts out_buf.string
+keys = redis_keys
 
 describe "sidekiq batch" do
   it "runs overall complete callback" do
@@ -148,6 +149,6 @@ describe "sidekiq batch" do
   end
 
   it "cleans redis keys" do
-    expect(redis_keys).to eq([])
+    expect(keys).to eq([])
   end
 end

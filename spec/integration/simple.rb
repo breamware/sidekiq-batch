@@ -49,6 +49,7 @@ Sidekiq.logger = Logger.new out_buf
 Sidekiq::Worker.drain_all
 
 output = out_buf.string
+keys = redis_keys
 puts out_buf.string
 
 describe "sidekiq batch" do
@@ -61,6 +62,6 @@ describe "sidekiq batch" do
   end
 
   it "cleans redis keys" do
-    expect(redis_keys).to eq([])
+    expect(keys).to eq([])
   end
 end

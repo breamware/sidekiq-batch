@@ -237,17 +237,8 @@ describe Sidekiq::Batch do
           Sidekiq::Batch.enqueue_callbacks(event, batch.bid)
         end
       end
-
-      context 'when callbacks are defined' do
-        it 'clears redis keys' do
-          batch = Sidekiq::Batch.new
-          batch.on(event, SampleCallback)
-          expect(Sidekiq::Batch).to receive(:cleanup_redis).with(batch.bid)
-          Sidekiq::Batch.enqueue_callbacks(event, batch.bid)
-        end
-      end
     end
-    
+
     context 'when already called' do
       it 'returns and does not enqueue callbacks' do
         batch = Sidekiq::Batch.new

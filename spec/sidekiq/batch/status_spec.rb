@@ -77,7 +77,7 @@ describe Sidekiq::Batch::Status do
 
   describe '#data' do
     it 'returns batch description' do
-      expect(subject.data).to eq(total: 0, failures: 0, pending: 0, created_at: nil, complete: false, failure_info: [], parent_bid: nil)
+      expect(subject.data).to include(total: 0, failures: 0, pending: 0, created_at: nil, complete: false, failure_info: [], parent_bid: nil)
     end
   end
 

@@ -84,24 +84,5 @@ end
 
 puts "Overall bid #{batch.bid}"
 
-out_buf = StringIO.new
-Sidekiq.logger = Logger.new out_buf
-
-Sidekiq::Worker.drain_all
-
-output = out_buf.string
-puts out_buf.string
-
-describe "sidekiq batch" do
-  it "runs overall complete callback" do
-    expect(output).to include "Overall Complete"
-  end
-
-  it "runs overall success callback" do
-    expect(output).to include "Overall Success"
-  end
-
-  it "cleans redis keys" do
-    expect(redis_keys).to eq([])
-  end
-end
+output, keys = process_tests
+overall_tests output, keys

@@ -197,7 +197,6 @@ describe Sidekiq::Batch do
       before { batch.on(:complete, Object) }
       it 'tries to call complete callback' do
         expect(Sidekiq::Batch).to receive(:enqueue_callbacks).with(:complete, bid).ordered
-        expect(Sidekiq::Batch).to receive(:enqueue_callbacks).with(:success, bid).ordered
         Sidekiq::Batch.process_successful_job(bid, jid)
       end
 

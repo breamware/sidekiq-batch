@@ -198,7 +198,6 @@ module Sidekiq
         # if complete or successfull call complete callback (the complete callback may then call successful)
         if (pending.to_i == failed.to_i && children == complete) || all_success
           enqueue_callbacks(:complete, bid)
-          enqueue_callbacks(:success, bid) if all_success
         end
       end
 
@@ -216,7 +215,7 @@ module Sidekiq
           end
         end
 
-        return if already_processed == 'true'
+        already_processed = already_processed == 'true'
 
         queue ||= "default"
         parent_bid = !parent_bid || parent_bid.empty? ? nil : parent_bid    # Basically parent_bid.blank?
@@ -228,7 +227,7 @@ module Sidekiq
         opts = {"bid" => bid, "event" => event}
 
         # Run callback batch finalize synchronously
-        if callback_batch
+        if callback_batch && !already_processed
           # Extract opts from cb_args or use current
           # Pass in stored event as callback finalize is processed on complete event
           cb_opts = callback_args.first&.at(2) || opts
@@ -250,6 +249,8 @@ module Sidekiq
           status = Status.new bid
           finalizer.dispatch(status, opts)
         else
+          return if already_processed
+
           # Otherwise finalize in sub batch complete callback
           cb_batch = self.new
           cb_batch.callback_batch = true

@@ -1,11 +1,14 @@
 require_relative 'extension/worker'
+require_relative 'extension/known_batch_base_klass'
 
 module Sidekiq
   class Batch
     module Middleware
       class ClientMiddleware
+        include Sidekiq::Batch::Extension::KnownBatchBaseKlass
+
         def call(_worker, msg, _queue, _redis_pool = nil)
-          if (batch = Thread.current[:batch])
+          if allowed?(msg['class']) && (batch = Thread.current[:batch])
             batch.increment_job_queue(msg['jid']) if (msg[:bid] = batch.bid)
           end
           yield

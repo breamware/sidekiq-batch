@@ -60,7 +60,7 @@ describe Sidekiq::Batch do
 
     it 'increments to_process (when started)'
 
-    it 'decrements to_process (when finished)'
+    # it 'decrements to_process (when finished)'
     # it 'calls process_successful_job to wait for block to finish' do
     #   batch = Sidekiq::Batch.new
     #   expect(Sidekiq::Batch).to receive(:process_successful_job).with(batch.bid)

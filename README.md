@@ -42,3 +42,23 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/breamw
 ## License
 
 The gem is available as open source under the terms of the [MIT License](http://opensource.org/licenses/MIT).
+
+
+## Changes in this fork
+
+There are multiple bugs reported on how the complete/success callback is called on batches.
+This version fixes (tries to fix) 2 bugs (unwanted behaviours): 
+1. The complete callback is called sometimes to early, before batch completion 
+2. The total number of pending jobs from the batch sometimes differ from the initial jobs enqueued initially 
+
+Both issues are caused (in my case) when the jobs from the batch are enqueuing jobs that are not related to the batch. 
+Also this is reproducible only when concurrency is > 1
+
+#### How the fix works:  
+We consider that only the "Allowed" classes can be added to the batch queue.
+To enable this behaviour, the following constants should be set in an initializer:
+```
+Sidekiq::Batch::Extension::KnownBatchBaseKlass::ENABLED = true
+Sidekiq::Batch::Extension::KnownBatchBaseKlass::ALLOWED = [MyBaseBatchWorker].freeze
+```
+By enabling this behaviour, jobs that are enqueued by jobs from our batch, are not added to the batch also. Only the ones that have as an ancestor a base class defined by us. 

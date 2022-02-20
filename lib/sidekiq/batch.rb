@@ -42,12 +42,12 @@ module Sidekiq
       return unless %w(success complete).include?(event.to_s)
       callback_key = "#{@bidkey}-callbacks-#{event}"
       Sidekiq.redis do |r|
-        r.multi do
-          r.sadd(callback_key, JSON.unparse({
+        r.multi do |pipeline|
+          pipeline.sadd(callback_key, JSON.unparse({
             callback: callback,
             opts: options
           }))
-          r.expire(callback_key, BID_EXPIRE_TTL)
+          pipeline.expire(callback_key, BID_EXPIRE_TTL)
         end
       end
     end
@@ -62,10 +62,10 @@ module Sidekiq
           parent_bid = Thread.current[:batch].bid if Thread.current[:batch]
 
           Sidekiq.redis do |r|
-            r.multi do
-              r.hset(@bidkey, "created_at", @created_at)
-              r.hset(@bidkey, "parent_bid", parent_bid.to_s) if parent_bid
-              r.expire(@bidkey, BID_EXPIRE_TTL)
+            r.multi do |pipeline|
+              pipeline.hset(@bidkey, "created_at", @created_at)
+              pipeline.hset(@bidkey, "parent_bid", parent_bid.to_s) if parent_bid
+              pipeline.expire(@bidkey, BID_EXPIRE_TTL)
             end
           end
 
@@ -85,19 +85,19 @@ module Sidekiq
         return [] if @ready_to_queue.size == 0
 
         Sidekiq.redis do |r|
-          r.multi do
+          r.multi do |pipeline|
             if parent_bid
-              r.hincrby("BID-#{parent_bid}", "children", 1)
-              r.hincrby("BID-#{parent_bid}", "total", @ready_to_queue.size)
-              r.expire("BID-#{parent_bid}", BID_EXPIRE_TTL)
+              pipeline.hincrby("BID-#{parent_bid}", "children", 1)
+              pipeline.hincrby("BID-#{parent_bid}", "total", @ready_to_queue.size)
+              pipeline.expire("BID-#{parent_bid}", BID_EXPIRE_TTL)
             end
 
-            r.hincrby(@bidkey, "pending", @ready_to_queue.size)
-            r.hincrby(@bidkey, "total", @ready_to_queue.size)
-            r.expire(@bidkey, BID_EXPIRE_TTL)
+            pipeline.hincrby(@bidkey, "pending", @ready_to_queue.size)
+            pipeline.hincrby(@bidkey, "total", @ready_to_queue.size)
+            pipeline.expire(@bidkey, BID_EXPIRE_TTL)
 
-            r.sadd(@bidkey + "-jids", @ready_to_queue)
-            r.expire(@bidkey + "-jids", BID_EXPIRE_TTL)
+            pipeline.sadd(@bidkey + "-jids", @ready_to_queue)
+            pipeline.expire(@bidkey + "-jids", BID_EXPIRE_TTL)
           end
         end
 
@@ -138,9 +138,9 @@ module Sidekiq
 
     def persist_bid_attr(attribute, value)
       Sidekiq.redis do |r|
-        r.multi do
-          r.hset(@bidkey, attribute, value)
-          r.expire(@bidkey, BID_EXPIRE_TTL)
+        r.multi do |pipeline|
+          pipeline.hset(@bidkey, attribute, value)
+          pipeline.expire(@bidkey, BID_EXPIRE_TTL)
         end
       end
     end
@@ -148,26 +148,26 @@ module Sidekiq
     class << self
       def process_failed_job(bid, jid)
         _, pending, failed, children, complete, parent_bid = Sidekiq.redis do |r|
-          r.multi do
-            r.sadd("BID-#{bid}-failed", jid)
+          r.multi do |pipeline|
+            pipeline.sadd("BID-#{bid}-failed", jid)
 
-            r.hincrby("BID-#{bid}", "pending", 0)
-            r.scard("BID-#{bid}-failed")
-            r.hincrby("BID-#{bid}", "children", 0)
-            r.scard("BID-#{bid}-complete")
-            r.hget("BID-#{bid}", "parent_bid")
+            pipeline.hincrby("BID-#{bid}", "pending", 0)
+            pipeline.scard("BID-#{bid}-failed")
+            pipeline.hincrby("BID-#{bid}", "children", 0)
+            pipeline.scard("BID-#{bid}-complete")
+            pipeline.hget("BID-#{bid}", "parent_bid")
 
-            r.expire("BID-#{bid}-failed", BID_EXPIRE_TTL)
+            pipeline.expire("BID-#{bid}-failed", BID_EXPIRE_TTL)
           end
         end
 
         # if the batch failed, and has a parent, update the parent to show one pending and failed job
         if parent_bid
           Sidekiq.redis do |r|
-            r.multi do
-              r.hincrby("BID-#{parent_bid}", "pending", 1)
-              r.sadd("BID-#{parent_bid}-failed", jid)
-              r.expire("BID-#{parent_bid}-failed", BID_EXPIRE_TTL)
+            r.multi do |pipeline|
+              pipeline.hincrby("BID-#{parent_bid}", "pending", 1)
+              pipeline.sadd("BID-#{parent_bid}-failed", jid)
+              pipeline.expire("BID-#{parent_bid}-failed", BID_EXPIRE_TTL)
             end
           end
         end
@@ -179,18 +179,18 @@ module Sidekiq
 
       def process_successful_job(bid, jid)
         failed, pending, children, complete, success, total, parent_bid = Sidekiq.redis do |r|
-          r.multi do
-            r.scard("BID-#{bid}-failed")
-            r.hincrby("BID-#{bid}", "pending", -1)
-            r.hincrby("BID-#{bid}", "children", 0)
-            r.scard("BID-#{bid}-complete")
-            r.scard("BID-#{bid}-success")
-            r.hget("BID-#{bid}", "total")
-            r.hget("BID-#{bid}", "parent_bid")
+          r.multi do |pipeline|
+            pipeline.scard("BID-#{bid}-failed")
+            pipeline.hincrby("BID-#{bid}", "pending", -1)
+            pipeline.hincrby("BID-#{bid}", "children", 0)
+            pipeline.scard("BID-#{bid}-complete")
+            pipeline.scard("BID-#{bid}-success")
+            pipeline.hget("BID-#{bid}", "total")
+            pipeline.hget("BID-#{bid}", "parent_bid")
 
-            r.srem("BID-#{bid}-failed", jid)
-            r.srem("BID-#{bid}-jids", jid)
-            r.expire("BID-#{bid}", BID_EXPIRE_TTL)
+            pipeline.srem("BID-#{bid}-failed", jid)
+            pipeline.srem("BID-#{bid}-jids", jid)
+            pipeline.expire("BID-#{bid}", BID_EXPIRE_TTL)
           end
         end
 
@@ -206,13 +206,13 @@ module Sidekiq
         batch_key = "BID-#{bid}"
         callback_key = "#{batch_key}-callbacks-#{event}"
         already_processed, _, callbacks, queue, parent_bid, callback_batch = Sidekiq.redis do |r|
-          r.multi do
-            r.hget(batch_key, event)
-            r.hset(batch_key, event, true)
-            r.smembers(callback_key)
-            r.hget(batch_key, "callback_queue")
-            r.hget(batch_key, "parent_bid")
-            r.hget(batch_key, "callback_batch")
+          r.multi do |pipeline|
+            pipeline.hget(batch_key, event)
+            pipeline.hset(batch_key, event, true)
+            pipeline.smembers(callback_key)
+            pipeline.hget(batch_key, "callback_queue")
+            pipeline.hget(batch_key, "parent_bid")
+            pipeline.hget(batch_key, "callback_batch")
           end
         end
 

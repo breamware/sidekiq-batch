@@ -227,10 +227,11 @@ describe Sidekiq::Batch do
 
   describe '#enqueue_callbacks' do
     let(:callback) { double('callback') }
-    let(:event) { :complete }
+    let(:event) { "complete" }
 
     context 'on :success' do
-      let(:event) { :success }
+      let(:event) { "success" }
+
       context 'when no callbacks are defined' do
         it 'clears redis keys' do
           batch = Sidekiq::Batch.new

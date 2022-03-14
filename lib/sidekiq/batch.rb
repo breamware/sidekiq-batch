@@ -203,6 +203,7 @@ module Sidekiq
       end
 
       def enqueue_callbacks(event, bid)
+        event = event.to_s
         batch_key = "BID-#{bid}"
         callback_key = "#{batch_key}-callbacks-#{event}"
         already_processed, _, callbacks, queue, parent_bid, callback_batch = Sidekiq.redis do |r|

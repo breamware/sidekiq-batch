@@ -203,13 +203,13 @@ module Sidekiq
       end
 
       def enqueue_callbacks(event, bid)
-        event = event.to_s
+        event_name = event.to_s
         batch_key = "BID-#{bid}"
-        callback_key = "#{batch_key}-callbacks-#{event}"
+        callback_key = "#{batch_key}-callbacks-#{event_name}"
         already_processed, _, callbacks, queue, parent_bid, callback_batch = Sidekiq.redis do |r|
           r.multi do |pipeline|
-            pipeline.hget(batch_key, event)
-            pipeline.hset(batch_key, event, true)
+            pipeline.hget(batch_key, event_name)
+            pipeline.hset(batch_key, event_name, true)
             pipeline.smembers(callback_key)
             pipeline.hget(batch_key, "callback_queue")
             pipeline.hget(batch_key, "parent_bid")
@@ -223,10 +223,10 @@ module Sidekiq
         parent_bid = !parent_bid || parent_bid.empty? ? nil : parent_bid    # Basically parent_bid.blank?
         callback_args = callbacks.reduce([]) do |memo, jcb|
           cb = Sidekiq.load_json(jcb)
-          memo << [cb['callback'], event, cb['opts'], bid, parent_bid]
+          memo << [cb['callback'], event_name, cb['opts'], bid, parent_bid]
         end
 
-        opts = {"bid" => bid, "event" => event}
+        opts = {"bid" => bid, "event" => event_name}
 
         # Run callback batch finalize synchronously
         if callback_batch
@@ -234,7 +234,7 @@ module Sidekiq
           # Pass in stored event as callback finalize is processed on complete event
           cb_opts = callback_args.first&.at(2) || opts
 
-          Sidekiq.logger.debug {"Run callback batch bid: #{bid} event: #{event} args: #{callback_args.inspect}"}
+          Sidekiq.logger.debug {"Run callback batch bid: #{bid} event: #{event_name} args: #{callback_args.inspect}"}
           # Finalize now
           finalizer = Sidekiq::Batch::Callback::Finalize.new
           status = Status.new bid
@@ -243,7 +243,7 @@ module Sidekiq
           return
         end
 
-        Sidekiq.logger.debug {"Enqueue callback bid: #{bid} event: #{event} args: #{callback_args.inspect}"}
+        Sidekiq.logger.debug {"Enqueue callback bid: #{bid} event: #{event_name} args: #{callback_args.inspect}"}
 
         if callback_args.empty?
           # Finalize now

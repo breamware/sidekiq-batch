@@ -227,10 +227,10 @@ describe Sidekiq::Batch do
 
   describe '#enqueue_callbacks' do
     let(:callback) { double('callback') }
-    let(:event) { "complete" }
+    let(:event) { :complete }
 
     context 'on :success' do
-      let(:event) { "success" }
+      let(:event) { :success }
 
       context 'when no callbacks are defined' do
         it 'clears redis keys' do
@@ -271,7 +271,7 @@ describe Sidekiq::Batch do
 
           expect(Sidekiq::Client).to receive(:push_bulk).with(
             'class' => Sidekiq::Batch::Callback::Worker,
-            'args' => [['SampleCallback', event, opts, batch.bid, nil]],
+            'args' => [['SampleCallback', event.to_s, opts, batch.bid, nil]],
             'queue' => 'default'
           )
           Sidekiq::Batch.enqueue_callbacks(event, batch.bid)
@@ -290,8 +290,8 @@ describe Sidekiq::Batch do
           expect(Sidekiq::Client).to receive(:push_bulk).with(
             'class' => Sidekiq::Batch::Callback::Worker,
             'args' => [
-              ['SampleCallback2', event, opts2, batch.bid, nil],
-              ['SampleCallback', event, opts, batch.bid, nil]
+              ['SampleCallback2', event.to_s, opts2, batch.bid, nil],
+              ['SampleCallback', event.to_s, opts, batch.bid, nil]
             ],
             'queue' => 'default'
           )

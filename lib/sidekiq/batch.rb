@@ -43,10 +43,10 @@ module Sidekiq
       callback_key = "#{@bidkey}-callbacks-#{event}"
       Sidekiq.redis do |r|
         r.multi do |pipeline|
-          pipeline.sadd(callback_key, JSON.unparse({
+          pipeline.sadd(callback_key, [JSON.unparse({
             callback: callback,
             opts: options
-          }))
+          })])
           pipeline.expire(callback_key, BID_EXPIRE_TTL)
         end
       end
@@ -96,7 +96,7 @@ module Sidekiq
             pipeline.hincrby(@bidkey, "total", @ready_to_queue.size)
             pipeline.expire(@bidkey, BID_EXPIRE_TTL)
 
-            pipeline.sadd(@bidkey + "-jids", @ready_to_queue)
+            pipeline.sadd(@bidkey + "-jids", [@ready_to_queue])
             pipeline.expire(@bidkey + "-jids", BID_EXPIRE_TTL)
           end
         end
@@ -149,7 +149,7 @@ module Sidekiq
       def process_failed_job(bid, jid)
         _, pending, failed, children, complete, parent_bid = Sidekiq.redis do |r|
           r.multi do |pipeline|
-            pipeline.sadd("BID-#{bid}-failed", jid)
+            pipeline.sadd("BID-#{bid}-failed", [jid])
 
             pipeline.hincrby("BID-#{bid}", "pending", 0)
             pipeline.scard("BID-#{bid}-failed")
@@ -166,7 +166,7 @@ module Sidekiq
           Sidekiq.redis do |r|
             r.multi do |pipeline|
               pipeline.hincrby("BID-#{parent_bid}", "pending", 1)
-              pipeline.sadd("BID-#{parent_bid}-failed", jid)
+              pipeline.sadd("BID-#{parent_bid}-failed", [jid])
               pipeline.expire("BID-#{parent_bid}-failed", BID_EXPIRE_TTL)
             end
           end
@@ -188,8 +188,8 @@ module Sidekiq
             pipeline.hget("BID-#{bid}", "total")
             pipeline.hget("BID-#{bid}", "parent_bid")
 
-            pipeline.srem("BID-#{bid}-failed", jid)
-            pipeline.srem("BID-#{bid}-jids", jid)
+            pipeline.srem("BID-#{bid}-failed", [jid])
+            pipeline.srem("BID-#{bid}-jids", [jid])
             pipeline.expire("BID-#{bid}", BID_EXPIRE_TTL)
           end
         end

@@ -40,10 +40,10 @@ module Sidekiq
 
           _, _, success, _, complete, pending, children, failure = Sidekiq.redis do |r|
             r.multi do |pipeline|
-              pipeline.sadd("BID-#{parent_bid}-success", bid)
+              pipeline.sadd("BID-#{parent_bid}-success", [bid])
               pipeline.expire("BID-#{parent_bid}-success", Sidekiq::Batch::BID_EXPIRE_TTL)
               pipeline.scard("BID-#{parent_bid}-success")
-              pipeline.sadd("BID-#{parent_bid}-complete", bid)
+              pipeline.sadd("BID-#{parent_bid}-complete", [bid])
               pipeline.scard("BID-#{parent_bid}-complete")
               pipeline.hincrby("BID-#{parent_bid}", "pending", 0)
               pipeline.hincrby("BID-#{parent_bid}", "children", 0)
@@ -81,7 +81,7 @@ module Sidekiq
             Sidekiq.logger.debug {"Finalize parent complete bid: #{parent_bid}"}
             _, complete, pending, children, failure = Sidekiq.redis do |r|
               r.multi do |pipeline|
-                pipeline.sadd("BID-#{parent_bid}-complete", bid)
+                pipeline.sadd("BID-#{parent_bid}-complete", [bid])
                 pipeline.scard("BID-#{parent_bid}-complete")
                 pipeline.hincrby("BID-#{parent_bid}", "pending", 0)
                 pipeline.hincrby("BID-#{parent_bid}", "children", 0)

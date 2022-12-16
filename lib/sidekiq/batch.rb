@@ -138,10 +138,10 @@ module Sidekiq
     def should_increment?
       return false unless @incremental_push
       return true if @batch_push_interval == 0 || @queued_jids.length == 1
-
-      @last_increment ||= Time.now.to_f
-      if @last_increment + @batch_push_interval > Time.now.to_f
-        @last_increment = Time.now.to_f
+      now = Time.now.to_f
+      @last_increment ||= now
+      if @last_increment + @batch_push_interval > now
+        @last_increment = now
         return true
       end
     end

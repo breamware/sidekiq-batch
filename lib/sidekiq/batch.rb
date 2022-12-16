@@ -88,8 +88,9 @@ module Sidekiq
         ensure
           Thread.current[:batch] = parent
         end
-        conditional_redis_increment!(true)
+
         return [] if @queued_jids.size == 0
+        conditional_redis_increment!(true)
 
         Sidekiq.redis do |r|
           r.multi do |pipeline|

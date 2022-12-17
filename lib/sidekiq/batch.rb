@@ -62,7 +62,7 @@ module Sidekiq
 
       begin
         if !@existing && !@initialized
-          parent_bid, Thread.current[:parent_id] = Thread.current[:batch].bid if Thread.current[:batch]
+          parent_bid = Thread.current[:batch].bid if Thread.current[:batch]
 
           Sidekiq.redis do |r|
             r.multi do |pipeline|
@@ -84,9 +84,11 @@ module Sidekiq
         begin
           parent = Thread.current[:batch]
           Thread.current[:batch] = self
+          Thread.current[:parent_bid] = parent_bid
           yield
         ensure
           Thread.current[:batch] = parent
+          Thread.current[:parent_bid] = nil
         end
 
         return [] if @queued_jids.size == 0
@@ -119,7 +121,7 @@ module Sidekiq
 
     def conditional_redis_increment!(force=false)
       if should_increment? || force
-        parent_bid = Thread.current[:parent_id]
+        parent_bid = Thread.current[:parent_bid]
         Sidekiq.redis do |r|
           r.multi do |pipeline|
             if parent_bid

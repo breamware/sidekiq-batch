@@ -96,7 +96,7 @@ module Sidekiq
             pipeline.hincrby(@bidkey, "total", @ready_to_queue.size)
             pipeline.expire(@bidkey, BID_EXPIRE_TTL)
 
-            pipeline.sadd(@bidkey + "-jids", [@ready_to_queue])
+            pipeline.sadd(@bidkey + "-jids", @ready_to_queue)
             pipeline.expire(@bidkey + "-jids", BID_EXPIRE_TTL)
           end
         end

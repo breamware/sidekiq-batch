@@ -1,9 +1,19 @@
 require 'spec_helper'
 
+class TestWorker
+  include Sidekiq::Worker
+  def perform
+  end
+end
+
 describe Sidekiq::Batch::Status do
   let(:bid) { 'BID' }
   let(:batch) { Sidekiq::Batch.new(bid) }
   subject { described_class.new(bid) }
+
+  before do
+    Sidekiq.redis do |r| r.flushdb end
+  end
 
   describe '#join' do
     it 'raises info' do

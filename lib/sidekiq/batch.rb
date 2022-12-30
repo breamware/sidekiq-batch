@@ -63,7 +63,7 @@ module Sidekiq
 
           Sidekiq.redis do |r|
             r.multi do |pipeline|
-              pipeline.hset(@bidkey, "created_at", @created_at)
+              pipeline.hset(@bidkey, "created_at", Time.now.to_s)
               pipeline.hset(@bidkey, "parent_bid", parent_bid.to_s) if parent_bid
               pipeline.expire(@bidkey, BID_EXPIRE_TTL)
             end
@@ -113,7 +113,7 @@ module Sidekiq
 
     def invalidate_all
       Sidekiq.redis do |r|
-        r.setex("invalidated-bid-#{bid}", BID_EXPIRE_TTL, 1)
+        r.call("SETEX","invalidated-bid-#{bid}", BID_EXPIRE_TTL, 1)
       end
     end
 
@@ -130,7 +130,7 @@ module Sidekiq
     end
 
     def valid?(batch = self)
-      valid = !Sidekiq.redis { |r| r.exists("invalidated-bid-#{batch.bid}") }
+      valid = !Sidekiq.redis { |r| r.exists("invalidated-bid-#{batch.bid}").to_i > 0 }
       batch.parent ? valid && valid?(batch.parent) : valid
     end
 
@@ -139,7 +139,7 @@ module Sidekiq
     def persist_bid_attr(attribute, value)
       Sidekiq.redis do |r|
         r.multi do |pipeline|
-          pipeline.hset(@bidkey, attribute, value)
+          pipeline.hset(@bidkey, attribute, value.to_s)
           pipeline.expire(@bidkey, BID_EXPIRE_TTL)
         end
       end
@@ -208,8 +208,8 @@ module Sidekiq
         callback_key = "#{batch_key}-callbacks-#{event_name}"
         already_processed, _, callbacks, queue, parent_bid, callback_batch = Sidekiq.redis do |r|
           r.multi do |pipeline|
-            pipeline.hget(batch_key, event_name)
-            pipeline.hset(batch_key, event_name, true)
+            pipeline.call('HGET', batch_key, event_name)
+            pipeline.hset(batch_key, event_name, 'true')
             pipeline.smembers(callback_key)
             pipeline.hget(batch_key, "callback_queue")
             pipeline.hget(batch_key, "parent_bid")

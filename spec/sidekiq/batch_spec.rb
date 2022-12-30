@@ -170,7 +170,7 @@ describe Sidekiq::Batch do
         Sidekiq::Batch.process_failed_job(bid, 'failed-job-id')
         Sidekiq::Batch.process_failed_job(bid, failed_jid)
         failed = Sidekiq.redis { |r| r.smembers("BID-#{bid}-failed") }
-        expect(failed).to eq(['xxx', 'failed-job-id'])
+        expect(failed).to match_array(['xxx', 'failed-job-id'])
       end
     end
   end
@@ -245,7 +245,7 @@ describe Sidekiq::Batch do
       it 'returns and does not enqueue callbacks' do
         batch = Sidekiq::Batch.new
         batch.on(event, SampleCallback)
-        Sidekiq.redis { |r| r.hset("BID-#{batch.bid}", event, true) }
+        Sidekiq.redis { |r| r.hset("BID-#{batch.bid}", event, 'true') }
 
         expect(Sidekiq::Client).not_to receive(:push)
         Sidekiq::Batch.enqueue_callbacks(event, batch.bid)

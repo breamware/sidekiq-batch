@@ -20,7 +20,10 @@ module Sidekiq
       @initialized = false
       @created_at = Time.now.utc.to_f
       @bidkey = "BID-" + @bid.to_s
-      @ready_to_queue = []
+      @queued_jids = []
+      @pending_jids = []
+      @incremental_push = Sidekiq.options.keys.include?(:batch_push_interval)
+      @batch_push_interval = Sidekiq.options[:batch_push_interval]
     end
 
     def description=(description)
@@ -64,51 +67,86 @@ module Sidekiq
           Sidekiq.redis do |r|
             r.multi do |pipeline|
               pipeline.hset(@bidkey, "created_at", @created_at)
-              pipeline.hset(@bidkey, "parent_bid", parent_bid.to_s) if parent_bid
               pipeline.expire(@bidkey, BID_EXPIRE_TTL)
+              if parent_bid
+                pipeline.hset(@bidkey, "parent_bid", parent_bid.to_s)
+                pipeline.hincrby("BID-#{parent_bid}", "children", 1)
+              end
             end
           end
 
           @initialized = true
         end
 
-        @ready_to_queue = []
+        @queued_jids = []
+        @pending_jids = []
 
         begin
           parent = Thread.current[:batch]
           Thread.current[:batch] = self
+          Thread.current[:parent_bid] = parent_bid
           yield
         ensure
           Thread.current[:batch] = parent
+          Thread.current[:parent_bid] = nil
         end
 
-        return [] if @ready_to_queue.size == 0
+        return [] if @queued_jids.size == 0
+        conditional_redis_increment!(true)
 
         Sidekiq.redis do |r|
           r.multi do |pipeline|
             if parent_bid
-              pipeline.hincrby("BID-#{parent_bid}", "children", 1)
-              pipeline.hincrby("BID-#{parent_bid}", "total", @ready_to_queue.size)
               pipeline.expire("BID-#{parent_bid}", BID_EXPIRE_TTL)
             end
 
-            pipeline.hincrby(@bidkey, "pending", @ready_to_queue.size)
-            pipeline.hincrby(@bidkey, "total", @ready_to_queue.size)
             pipeline.expire(@bidkey, BID_EXPIRE_TTL)
 
-            pipeline.sadd(@bidkey + "-jids", [@ready_to_queue])
+            pipeline.sadd(@bidkey + "-jids", [@queued_jids])
             pipeline.expire(@bidkey + "-jids", BID_EXPIRE_TTL)
           end
         end
 
-        @ready_to_queue
+        @queued_jids
       ensure
         Thread.current[:bid_data] = bid_data
       end
     end
 
     def increment_job_queue(jid)
-      @ready_to_queue << jid
+      @queued_jids << jid
+      @pending_jids << jid
+      conditional_redis_increment!
+    end
+
+    def conditional_redis_increment!(force=false)
+      if should_increment? || force
+        parent_bid = Thread.current[:parent_bid]
+        Sidekiq.redis do |r|
+          r.multi do |pipeline|
+            if parent_bid
+              pipeline.hincrby("BID-#{parent_bid}", "total", @pending_jids.length)
+              pipeline.expire("BID-#{parent_bid}", BID_EXPIRE_TTL)
+            end
+
+            pipeline.hincrby(@bidkey, "pending", @pending_jids.length)
+            pipeline.hincrby(@bidkey, "total", @pending_jids.length)
+            pipeline.expire(@bidkey, BID_EXPIRE_TTL)
+          end
+        end
+        @pending_jids = []
+      end
+    end
+
+    def should_increment?
+      return false unless @incremental_push
+      return true if @batch_push_interval == 0 || @queued_jids.length == 1
+      now = Time.now.to_f
+      @last_increment ||= now
+      if @last_increment + @batch_push_interval > now
+        @last_increment = now
+        return true
+      end
     end
 
     def invalidate_all

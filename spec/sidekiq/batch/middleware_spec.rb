@@ -79,7 +79,7 @@ describe Sidekiq::Batch::Middleware do
 end
 
 describe Sidekiq::Batch::Middleware do
-  let(:config) { class_double(Sidekiq) }
+  let(:config) { Sidekiq::MAJOR >= 7 ? double(Sidekiq.default_configuration) : class_double(Sidekiq) }
   let(:client_middleware) { double(Sidekiq::Middleware::Chain) }
 
   context 'client' do

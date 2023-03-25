@@ -1,3 +1,6 @@
+require 'sidekiq/testing' 
+Sidekiq::Testing.fake!
+
 require "simplecov"
 SimpleCov.start
 
@@ -6,7 +9,8 @@ require 'fakeredis/rspec'
 require 'sidekiq/batch'
 
 redis_opts = { url: "redis://127.0.0.1:6379/1" }
-redis_opts[:driver] = Redis::Connection::Memory if defined?(Redis::Connection::Memory)
+# This doesn't work with Sidekiq 7. Is fakeredis even needed?
+# redis_opts[:driver] = Redis::Connection::Memory if defined?(Redis::Connection::Memory)
 
 Sidekiq.configure_client do |config|
   config.redis = redis_opts

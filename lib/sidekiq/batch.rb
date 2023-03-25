@@ -23,7 +23,7 @@ module Sidekiq
       @queued_jids = []
       @pending_jids = []
       sidekiq_config = Sidekiq::MAJOR >= 7 ? (Thread.current[:sidekiq_capsule]&.config || Sidekiq.default_configuration) : Sidekiq.options
-      @incremental_push = sidekiq_config[:batch_push_interval].present?
+      @incremental_push = sidekiq_config[:batch_push_interval]&.present?
       @batch_push_interval = sidekiq_config[:batch_push_interval]
     end
 

@@ -67,6 +67,23 @@ this will ensure that the batch callback does not get triggered until WorkerA *a
 
 If WorkerA is just slow for whatever reason, setting to `0` will update the batch status immediately so that the callbacks don't fire.
 
+## Testing
+
+If you'd like to run tests you'll want add the middleware the Sidekiq testing.
+
+```rb
+Sidekiq::Testing.server_middleware do |chain|
+  chain.add Sidekiq::Batch::Middleware::ServerMiddleware
+end
+```
+
+Otherwise you may get an error such as:
+
+```rb
+ NoMethodError:
+       undefined method `jobs' for nil:NilClass
+```
+
 
 ## Contributing
 

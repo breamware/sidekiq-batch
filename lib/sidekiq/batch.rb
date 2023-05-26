@@ -22,8 +22,9 @@ module Sidekiq
       @bidkey = "BID-" + @bid.to_s
       @queued_jids = []
       @pending_jids = []
-      @incremental_push = nil
-      @batch_push_interval = nil
+      sidekiq_config = Sidekiq::MAJOR >= 7 ? (Thread.current[:sidekiq_capsule]&.config || Sidekiq.default_configuration) : Sidekiq.options
+      @incremental_push = sidekiq_config[:batch_push_interval]&.present?
+      @batch_push_interval = sidekiq_config[:batch_push_interval]
     end
 
     def description=(description)

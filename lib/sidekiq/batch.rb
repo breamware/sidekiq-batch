@@ -103,7 +103,7 @@ module Sidekiq
 
             pipeline.expire(@bidkey, BID_EXPIRE_TTL)
 
-            pipeline.sadd(@bidkey + "-jids", @queued_jids)
+            pipeline.sadd(@bidkey + "-jids", [@queued_jids].flatten)
             pipeline.expire(@bidkey + "-jids", BID_EXPIRE_TTL)
           end
         end
@@ -248,7 +248,7 @@ module Sidekiq
         already_processed, _, callbacks, queue, parent_bid, callback_batch = Sidekiq.redis do |r|
           r.multi do |pipeline|
             pipeline.hget(batch_key, event_name)
-            pipeline.hset(batch_key, event_name, true)
+            pipeline.hset(batch_key, event_name, 'true')
             pipeline.smembers(callback_key)
             pipeline.hget(batch_key, "callback_queue")
             pipeline.hget(batch_key, "parent_bid")
@@ -292,7 +292,7 @@ module Sidekiq
         else
           # Otherwise finalize in sub batch complete callback
           cb_batch = self.new
-          cb_batch.callback_batch = true
+          cb_batch.callback_batch = 'true'
           Sidekiq.logger.debug {"Adding callback batch: #{cb_batch.bid} for batch: #{bid}"}
           cb_batch.on(:complete, "Sidekiq::Batch::Callback::Finalize#dispatch", opts)
           cb_batch.jobs do

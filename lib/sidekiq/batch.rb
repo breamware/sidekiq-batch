@@ -22,8 +22,9 @@ module Sidekiq
       @bidkey = "BID-" + @bid.to_s
       @queued_jids = []
       @pending_jids = []
-      @incremental_push = Sidekiq.options.keys.include?(:batch_push_interval)
-      @batch_push_interval = Sidekiq.options[:batch_push_interval]
+
+      @incremental_push = !Sidekiq.default_configuration[:batch_push_interval].nil?
+      @batch_push_interval = Sidekiq.default_configuration[:batch_push_interval]
     end
 
     def description=(description)
@@ -102,7 +103,7 @@ module Sidekiq
 
             pipeline.expire(@bidkey, BID_EXPIRE_TTL)
 
-            pipeline.sadd(@bidkey + "-jids", [@queued_jids])
+            pipeline.sadd(@bidkey + "-jids", @queued_jids)
             pipeline.expire(@bidkey + "-jids", BID_EXPIRE_TTL)
           end
         end

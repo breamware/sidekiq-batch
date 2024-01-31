@@ -292,7 +292,7 @@ module Sidekiq
         else
           # Otherwise finalize in sub batch complete callback
           cb_batch = self.new
-          cb_batch.callback_batch = true
+          cb_batch.callback_batch = 'true'
           Sidekiq.logger.debug {"Adding callback batch: #{cb_batch.bid} for batch: #{bid}"}
           cb_batch.on(:complete, "Sidekiq::Batch::Callback::Finalize#dispatch", opts)
           cb_batch.jobs do

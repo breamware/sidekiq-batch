@@ -4,6 +4,8 @@ on: [push, pull_request, workflow_dispatch]
 
 jobs:
   test:
+    env:
+      REDIS_HOST: 'redis'
 
     runs-on: ubuntu-latest
     services:

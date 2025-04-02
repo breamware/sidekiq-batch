@@ -152,7 +152,10 @@ module Sidekiq
 
     def invalidate_all
       Sidekiq.redis do |r|
-        r.setex("invalidated-bid-#{bid}", BID_EXPIRE_TTL, 1)
+        r.multi do |pipeline|
+          pipeline.set("invalidated-bid-#{@bid}", 1)
+          pipeline.expire("invalidated-bid-#{@bid}", BID_EXPIRE_TTL)
+        end
       end
     end
 

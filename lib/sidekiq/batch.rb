@@ -47,7 +47,7 @@ module Sidekiq
       callback_key = "#{@bidkey}-callbacks-#{event}"
       Sidekiq.redis do |r|
         r.multi do |pipeline|
-          pipeline.sadd(callback_key, [JSON.unparse({
+          pipeline.sadd(callback_key, [JSON.generate({
             callback: callback,
             opts: options
           })])
